@@ -266,7 +266,7 @@ tickets:
       name: "General Support"
       description: "Get help with general questions"
       emoji: "🎫"
-      categoryId: ""
+      categoryId: "1561104059963019304"
       staffRoleIds:
         - "1547085020957773884"
 
@@ -274,7 +274,7 @@ tickets:
       name: "Technical Support / Report"
       description: "Report an issue, user, or bug"
       emoji: "🛠️"
-      categoryId: ""
+      categoryId: "1561104059963019304"
       staffRoleIds:
         - "1547085020957773884"
 
@@ -282,7 +282,7 @@ tickets:
       name: "Purchase / Donation Support"
       description: "Get help with purchases or donations"
       emoji: "💰"
-      categoryId: ""
+      categoryId: "1561104059963019304"
       staffRoleIds:
         - "1547085020957773884"
 
