@@ -45,7 +45,7 @@ module.exports = {
             .addBooleanOption(o => o.setName('delete-on-close').setDescription('Delete the channel when a ticket closes').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('panel')
-            .setDescription('Post the Components V2 ticket panel (admin).')
+            .setDescription('Post or refresh the Components V2 ticket panel (admin).')
             .addChannelOption(o => o.setName('channel').setDescription('Target channel (defaults to this channel)').setRequired(false)
                 .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)))
         .addSubcommand(sub => sub
@@ -169,6 +169,10 @@ async function setupTickets(interaction) {
 }
 
 async function postPanel(interaction) {
+    // config.yml is loaded once at startup, but the panel is the most
+    // visible branding surface: re-read it so a rename in the file is
+    // picked up by the next /ticket panel run, without a bot restart.
+    configService.load();
     const config = await resolveTicketsConfig(interaction.guild);
     if (!config.enabled) {
         await interaction.editReply('❌ The ticket system is disabled in configuration.');
@@ -189,8 +193,59 @@ async function postPanel(interaction) {
         return;
     }
 
-    await target.send(buildPanel(config));
+    const payload = buildPanel(config);
+    const existing = await findExistingPanels(target, interaction.client);
+
+    // Re-running /ticket panel refreshes the message already in the
+    // channel, so renames in config.yml replace stale branding instead
+    // of leaving an old panel (with its old text) behind.
+    let refreshed = null;
+    if (existing.length > 0) {
+        refreshed = existing[0];
+        try {
+            await refreshed.edit(payload);
+        } catch (error) {
+            logger.warn(`Ticket panel refresh failed (${refreshed.id}): ${error.message}`);
+            refreshed = null;
+        }
+    }
+
+    if (refreshed) {
+        // Anything else that looks like a ticket panel in this channel
+        // is a stale duplicate from an earlier post — drop it so only the
+        // refreshed panel stays visible.
+        for (const stale of existing.slice(1)) {
+            await stale.delete().catch(() => null);
+        }
+        await interaction.editReply(`✅ Ticket panel refreshed in ${target} with ${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}.`);
+        return;
+    }
+
+    await target.send(payload);
     await interaction.editReply(`✅ Ticket panel posted in ${target} with ${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}.`);
+}
+
+// Panel messages are identified by the select menu they carry
+// (ticket:select:<panelId>), so panels posted before a rebrand are still
+// recognised and can be edited in place. Newest first.
+async function findExistingPanels(channel, client) {
+    const botId = client?.user?.id;
+    let messages;
+    try {
+        messages = await channel.messages.fetch({ limit: 50 });
+    } catch (error) {
+        logger.warn(`Ticket panel lookup failed in ${channel.id}: ${error.message}`);
+        return [];
+    }
+    return [...messages.filter((message) => {
+        if (botId && message.author?.id !== botId) return false;
+        if (!Array.isArray(message.components)) return false;
+        return message.components.some((row) =>
+            (row.components || []).some((component) =>
+                String(component.customId || '').startsWith('ticket:select:')
+            )
+        );
+    }).values()];
 }
 
 async function loadCurrentTicket(interaction) {
