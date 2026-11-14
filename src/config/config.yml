@@ -230,7 +230,7 @@ tickets:
   enabled: true             # Master switch for the ticket system
 
   panel:
-    channelId: "1478780183291887636"           # Default channel for /ticket panel ("" = current channel)
+    channelId: "1570473665638961342"           # Default channel for /ticket panel ("" = current channel)
     title: "🎫 YT HIVE Support Center"
     description: "Need help? Select a category below.\nOur support team will assist you shortly."
 
