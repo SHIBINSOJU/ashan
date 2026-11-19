@@ -33,7 +33,7 @@ module.exports = {
             const animated = (member?.avatar ?? user.avatar)?.startsWith('a_') ?? false;
             const type = member?.avatar ? 'Server avatar' : (user.avatar ? 'Global avatar' : 'Default avatar');
 
-            const container = new ContainerBuilder().setAccentColor(0x5865F2);
+            const container = new ContainerBuilder().setAccentColor(0xE53935);
             container.addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`## 🖼️ Avatar — ${user.tag}`)
             );

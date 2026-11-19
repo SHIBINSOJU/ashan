@@ -141,7 +141,7 @@ module.exports = {
                     const ok = await sendLog(interaction.guild, session.selected, {
                         emoji: '📨',
                         title: `Test Log — ${CATEGORIES[session.selected].label}`,
-                        accent: 0x5865F2,
+                        accent: 0xE53935,
                         thumbnailUrl: interaction.guild.iconURL?.({ size: 128 }) || null,
                         fields: [
                             { label: 'Category', value: CATEGORIES[session.selected].label },

@@ -187,7 +187,7 @@ async function showStatus(interaction) {
                         : '_none_'
                 }
             ],
-            accent: 0x5865F2,
+            accent: 0xE53935,
             footer: 'Use /antilink channel disable #channel to add an exception.'
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]

@@ -171,7 +171,7 @@ async function showList(interaction) {
                 { label: 'Bots', value: config.bots ? '✅ Will receive autoroles' : '❌ Disabled' },
                 { label: 'Delay', value: `${Math.max(0, Number(config.delay) || 0) / 1000} seconds` }
             ],
-            accent: 0x5865F2
+            accent: 0xE53935
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
     });
@@ -190,7 +190,7 @@ async function showStatus(interaction) {
                 { label: 'Bots', value: config.bots ? '✅' : '❌' },
                 { label: 'Delay', value: `${Math.max(0, Number(config.delay) || 0) / 1000}s` }
             ],
-            accent: 0x5865F2
+            accent: 0xE53935
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
     });

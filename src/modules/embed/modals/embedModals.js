@@ -24,7 +24,7 @@ function field(interaction, name) {
 
 function parseAccent(raw) {
     const trimmed = (raw || '').trim();
-    if (!trimmed) return { ok: true, value: 0x5865F2 }; // empty = default
+    if (!trimmed) return { ok: true, value: 0xE53935 }; // empty = default
     const match = trimmed.match(/^#?([0-9a-f]{6})$/i);
     if (!match) return { ok: false };
     return { ok: true, value: parseInt(match[1], 16) };
@@ -144,7 +144,7 @@ module.exports = {
                 case 'style': {
                     const parsed = parseAccent(field(interaction, 'color'));
                     if (!parsed.ok) {
-                        await notifyEphemeral(interaction, '❌ Invalid color. Use a hex color like #5865F2 (or leave empty for default).');
+                        await notifyEphemeral(interaction, '❌ Invalid color. Use a hex color like #E53935 (or leave empty for default).');
                         return;
                     }
                     session.state.accent = parsed.value;

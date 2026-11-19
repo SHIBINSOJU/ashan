@@ -1,6 +1,6 @@
-# Setup Guide — YT HIVE Discord Bot
+# Setup Guide — Ashan Gaming Official Discord Bot
 
-Get your YT HIVE Bot online in a few simple steps.
+Get your Ashan Gaming Official Bot online in a few simple steps.
 
 ---
 
@@ -10,7 +10,7 @@ Get your YT HIVE Bot online in a few simple steps.
 |---|---|
 | **Node.js** | v18+ (`node -v` to check) |
 | **npm** | Bundled with Node.js |
-| **MongoDB** | Local MongoDB (`mongodb://localhost:27017/yt_hive_bot`) or free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster |
+| **MongoDB** | Local MongoDB (`mongodb://localhost:27017/ashan_gaming_bot`) or free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster |
 | **Discord Account** | Developer permissions to create applications and invite bots |
 
 ---
@@ -18,7 +18,7 @@ Get your YT HIVE Bot online in a few simple steps.
 ## 2. Create Your Discord Application & Bot
 
 1. Open the [Discord Developer Portal](https://discord.com/developers/applications).
-2. Click **New Application** → Name it **YT HIVE** (or your preferred name) → Click **Create**.
+2. Click **New Application** → Name it **Ashan Gaming Official** (or your preferred name) → Click **Create**.
 3. Go to **Bot** in the left sidebar:
    - Click **Reset Token** (or Copy Token). This is your `DISCORD_TOKEN`.
    - Scroll down to **Privileged Gateway Intents** and enable both:
@@ -51,7 +51,7 @@ Open `.env` in the bot's root folder and fill in your details:
 DISCORD_TOKEN=your_bot_token_here
 CLIENT_ID=your_client_id_here
 GUILD_ID=your_server_guild_id_here
-MONGODB_URI=mongodb://localhost:27017/yt_hive_bot
+MONGODB_URI=mongodb://localhost:27017/ashan_gaming_bot
 ```
 
 ### How to get your Server (Guild) ID:
@@ -71,7 +71,7 @@ tickets:
   enabled: true
   panel:
     channelId: "YOUR_SUPPORT_CHANNEL_ID"      # Channel where /ticket panel is posted
-    title: "🎫 YT HIVE Support Center"
+    title: "🎫 Ashan Gaming Official Support Center"
     description: "Need help? Select a category below.\nOur support team will assist you shortly."
   logs:
     enabled: true
@@ -126,28 +126,38 @@ logs:
 welcome:
   enabled: true
   channelId: "YOUR_WELCOME_CHANNEL_ID"
-  layout: "card"                          # "card" = one generated image, "classic" = copy blocks
-  accentColor: "#A855F7"                  # accent bar + avatar ring
-  greeting: "👋 Welcome, {displayname}!"  # line above the card ("" = hidden)
-  invitedBy: "📨 Invited by {inviter}"    # small line under the card ("" = hidden)
+  layout: "classic"                        # "card" = one generated image, "classic" = copy blocks
+  accentColor: "#E53935"                  # Ashan Gaming red — accent bar + avatar ring
+  greeting: ""                            # optional line ("" = hidden; the copy can carry {mention})
+  invitedBy: ""                           # e.g. "📨 Invited by {inviter}" ("" = hidden)
+  thumbnail:
+    enabled: true
+    useServerIcon: true                   # the server's own logo becomes the header thumbnail
+    url: ""                              # an explicit picture wins over useServerIcon
+  image:
+    enabled: true
+    url: "https://example.com/welcome.gif" # banner media (GIF keeps animating)
+    path: ""                              # a local file wins over url and is uploaded with the message
   footer:
-    enabled: true                         # small line under the card, inside the container
-    text: "Enjoy your stay in YT HIVE."    # never drawn into the image
+    enabled: false                        # small line under the media, inside the container
+    text: "Enjoy your stay in Ashan Gaming Official."    # never drawn into the image
   card:
     background:
-      path: "./assets/welcome-yt-hive-purple.png"   # local artwork (wins over url)
+      path: "./assets/welcome-ashan-gaming-red.png"   # local artwork (wins over url)
       url: ""
     heading: "WELCOME TO"
     title: "{server}"
-    subtitle: "You are member #{membercount} of the hive"
+    subtitle: "You are member #{membercount} of the server"
     mention: "{mention}"                  # the ping above the card ("" = no ping)
     icon: true                            # server icon next to the greeting/mention
     scrim: true                           # rounded plate behind the text
-    scrimColor: "#231044"                 # plate tint ("#000000" = plain black)
+    scrimColor: "#2A0709"                 # plate tint ("#000000" = plain black)
     scrimOpacity: 0.8                     # 0 = invisible, 1 = solid
     scrimBorder: true                     # 2px accent hairline around the plate
 ```
 The card is rendered in memory for every join (avatar on the left, text on the right). Change `card.background.path` to swap the artwork — any PNG/JPG, or an animated GIF if you want it to move. `/welcome` edits all of this live per server.
+
+The shipping default is `layout: "classic"`: a bold header line, the greeting + copy, the server logo as the header thumbnail (`thumbnail.useServerIcon`) and the animated GIF from `image.url` as the banner. `image.path` (local file) wins over `image.url` and is uploaded with the message, so a Discord CDN link can never expire on you. Setting `image.url` clears the need for the legacy `gif:` block.
 
 `{inviter}` comes from the invite-tracking data (the member is pinged only by `{mention}`; the inviter shows as a name, not a notification). If the invite cannot be resolved the line reads "Invited by someone", and a slow/absent database can never delay the welcome by more than ~1.5s.
 
@@ -175,7 +185,7 @@ npm run dev
 ...
 📊 Total Commands Loaded: 47
 📊 Total Events Loaded: 33
-[INFO] Logged in as YT HIVE#0000!
+[INFO] Logged in as Ashan Gaming Official#0000!
 ✅ Successfully registered 47 slash commands.
 ```
 

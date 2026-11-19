@@ -22,7 +22,7 @@ const CATEGORIES = {
         label: 'Voice Logs',
         emoji: '🔊',
         description: 'Join, leave, move, mute, deafen, video, streaming',
-        accent: 0x5865F2,
+        accent: 0xE53935,
         defaultEnabled: true
     },
     channel: {

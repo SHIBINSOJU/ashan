@@ -32,7 +32,7 @@ module.exports = {
                 return;
             }
 
-            const container = new ContainerBuilder().setAccentColor(user.accentColor ?? 0x5865F2);
+            const container = new ContainerBuilder().setAccentColor(user.accentColor ?? 0xE53935);
             container.addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`## 🎆 Banner — ${user.tag}`)
             );

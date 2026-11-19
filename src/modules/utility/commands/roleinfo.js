@@ -38,7 +38,7 @@ module.exports = {
                         { label: 'Displayed separately (hoisted)', value: role.hoist ? 'Yes' : 'No' },
                         { label: 'Created', value: formatTimestamp(role.createdAt) }
                     ],
-                    accent: role.color !== 0 ? role.color : 0x5865F2
+                    accent: role.color !== 0 ? role.color : 0xE53935
                 }),
                 flags: [MessageFlags.IsComponentsV2]
             });

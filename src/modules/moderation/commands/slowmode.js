@@ -46,7 +46,7 @@ module.exports = {
 
         await logAction(interaction.guild, {
             title: '🐌 Slowmode Updated',
-            accent: 0x5865F2,
+            accent: 0xE53935,
             fields: [
                 { label: 'Channel', value: `${channel} (\`${channel.id}\`)` },
                 { label: 'Moderator', value: `${interaction.user} (\`${interaction.user.id}\`)` },

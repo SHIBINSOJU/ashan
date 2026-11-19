@@ -78,7 +78,7 @@ module.exports = {
             });
         }
 
-        const container = new ContainerBuilder().setAccentColor(0x5865F2);
+        const container = new ContainerBuilder().setAccentColor(0xE53935);
 
         if (searchResult.type === 'PLAYLIST') {
             for (const track of searchResult.tracks) {

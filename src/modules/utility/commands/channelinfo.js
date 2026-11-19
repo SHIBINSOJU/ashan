@@ -53,7 +53,7 @@ module.exports = {
             }
 
             await interaction.editReply({
-                ...buildInfoContainer({ header: `📺 #${channel.name ?? 'Channel'}`, fields, accent: 0x5865F2 }),
+                ...buildInfoContainer({ header: `📺 #${channel.name ?? 'Channel'}`, fields, accent: 0xE53935 }),
                 flags: [MessageFlags.IsComponentsV2]
             });
         } catch (error) {

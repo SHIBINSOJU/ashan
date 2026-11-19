@@ -389,7 +389,7 @@ async function showStatus(interaction) {
     });
     await interaction.editReply({
         ...buildInfoContainer({
-            header: '🛡️ YT HIVE AUTOMOD',
+            header: '🛡️ ASHAN GAMING AUTOMOD',
             fields: [
                 { label: 'System', value: config.enabled ? '🟢 Enabled' : '🔴 Disabled' },
                 { label: 'Rules', value: ruleLines.join('\n') },
@@ -402,7 +402,7 @@ async function showStatus(interaction) {
                     ].join('\n')
                 }
             ],
-            accent: 0x5865F2,
+            accent: 0xE53935,
             footer: 'Use /automod config for thresholds, actions, exemptions, and word count.'
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
@@ -435,7 +435,7 @@ async function showConfig(interaction) {
                 { label: 'Staff roles', value: (config.staffRoleIds || []).map((id) => `<@&${id}>`).join(', ') || '_none_' },
                 { label: 'Blocked words', value: `${words.length} configured (hidden)` }
             ],
-            accent: 0x5865F2,
+            accent: 0xE53935,
             footer: 'Thresholds live in config.yml; toggles, words, and exemptions per server.'
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]

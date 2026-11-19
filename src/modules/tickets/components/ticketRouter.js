@@ -334,7 +334,7 @@ async function handleDeleteCancel(interaction, ticketId) {
                 ...buildInfoContainer({
                     header: 'Delete cancelled',
                     fields: [{ label: 'Note', value: 'The ticket was not deleted.' }],
-                    accent: 0x5865F2
+                    accent: 0xE53935
                 }),
                 flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
             });
@@ -354,7 +354,7 @@ async function handleCloseCancel(interaction, ticketId) {
                 ...buildInfoContainer({
                     header: 'Close cancelled',
                     fields: [{ label: 'Note', value: 'The ticket stays open.' }],
-                    accent: 0x5865F2
+                    accent: 0xE53935
                 }),
                 flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
             });

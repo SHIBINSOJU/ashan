@@ -64,7 +64,7 @@ async function resolveTicketLogChannel(guild) {
  * NO-MENTION POLICY: every log is plain text (see ticketIdentity) and is
  * sent with explicit `allowedMentions` blocking all pings.
  */
-async function logTicket(guild, { title, accent = 0x5865F2, fields = [] }) {
+async function logTicket(guild, { title, accent = 0xE53935, fields = [] }) {
     try {
         const channel = await resolveTicketLogChannel(guild);
         if (!channel) return false;
@@ -102,7 +102,7 @@ async function logTicket(guild, { title, accent = 0x5865F2, fields = [] }) {
  * check fails so the caller can keep the ticket channel.
  */
 async function writeVerifiedTempTranscript(buffer) {
-    const dir = path.join(os.tmpdir(), 'yt-hive-ticket-transcripts');
+    const dir = path.join(os.tmpdir(), 'ashan-gaming-ticket-transcripts');
     await fs.mkdir(dir, { recursive: true });
     const tmpPath = path.join(
         dir,
@@ -318,7 +318,7 @@ async function addViewTranscriptButton(message, payload, attachmentUrl) {
  * Generic log entry WITH a transcript file attachment.
  * Same return contract as sendPayloadWithTranscriptFile (object, not bool).
  */
-async function logTicketWithFile(guild, { title, accent = 0x5865F2, fields = [], fileBuffer, filename }) {
+async function logTicketWithFile(guild, { title, accent = 0xE53935, fields = [], fileBuffer, filename }) {
     try {
         const channel = await resolveTicketLogChannel(guild);
         if (!channel) return { ok: false, error: 'no-log-channel' };

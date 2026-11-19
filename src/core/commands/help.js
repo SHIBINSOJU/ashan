@@ -52,7 +52,7 @@ async function showCommandList(interaction, ctx) {
         ...buildInfoContainer({
             header: `📖 Bot Help — **${mm.commands.size}** commands across **${groups.size}** modules`,
             fields,
-            accent: 0x5865F2,
+            accent: 0xE53935,
             footer: 'Use /help command:<name> for details about a specific command.'
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
@@ -95,7 +95,7 @@ async function showCommandDetails(interaction, ctx, name) {
                 { label: 'Permissions', value: permissions },
                 { label: 'Options', value: options }
             ],
-            accent: 0x5865F2
+            accent: 0xE53935
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
     });

@@ -9,62 +9,59 @@ adminRoleId: "1547085020957773884"
 
 welcome:
   enabled: true
-  channelId: "1558539095851008000"          # Channel ID for welcome messages ("" = system channel fallback)
+  channelId: "1486338630275567648"          # Channel ID for welcome messages ("" = system channel fallback)
   welcomeBots: false     # Send welcome messages for bots too
 
   # ── Render mode ────────────────────────────────────────────────────────────
   # "classic" = title + copy blocks + banner image (everything configured below).
   # "card"    = ONE generated image: member avatar on the left, "WELCOME TO /
-  #             {server}" / "You are member #N of the hive" on the right, plus
+  #             {server}" / "You are member #N of the server" on the right, plus
   #             a tiny mention line. See the `card:` section further down.
   # A single server can switch modes at runtime: /welcome → 🧩 Layout (saved per
   # server in GuildSettings.welcome.layout, so one bot can serve both styles).
-  # YT HIVE uses the generated "card" image (see the `card:` section below).
-  layout: "card"
+  # Ashan Gaming Official uses the classic layout: the Yuno Gasai GIF below is
+  # the banner, and the server logo rides next to the copy as the thumbnail.
+  layout: "classic"
 
   # ── Welcome message layout ─────────────────────────────────────────────────
   # Rendered top → bottom in this order:
   #   title (with thumbnail) → description → greeting → steps → outro → image → footer
   # Placeholders: {user} {mention} {username} {displayname} {displaynameStyled}
   #               {server} {membercount} {joined} {created}
-  title: "YT HIVE"         # "" = no title line
+  # The header line is part of `description` (bold) so it renders at body size,
+  # exactly like the live welcome — an H1 `title` would dwarf the rest of the copy.
+  title: ""                       # "" = no title line
 
   # 📝 Main copy (/welcome "Edit Message"). Blank lines start a new paragraph.
   description: |-
+    **Welcome to ASHAN GAMING OFCL**
     Hey {mention} 👋
-
-    Welcome to YT HIVE!
-
-    We're glad to have you here. Take a moment to explore the server, check the rules, and get familiar with the community.
+    Welcome to Ashan Gaming OFCL
+    the place for gaming, fun, and epic moments! 🎮🔥
 
   # Optional "get started" block — gets the same divider as every other block.
-  steps: |-
-    🌐 **GET STARTED**
-
-    📜 Read the rules
-    🎭 Choose your roles
-    💬 Meet the community
-    🚀 Explore the channels
+  steps: ""
 
   # Optional closing line.
-  outro: "⚡ **Enjoy your stay!**"
+  outro: ""
 
   # Greeting line. In the card layout it sits above the card (with the server
   # icon); in the classic layout it follows the description. "" = hidden.
-  greeting: "👋 Welcome, {displayname}!"
+  greeting: ""
   usernameInCard: false          # 🎨 true = bake the member's name into ./assets/welcome.gif (no banner image)
-  separatorEnabled: true         # ➖ divider lines between the blocks above
+  separatorEnabled: false        # ➖ divider lines between the blocks above
 
-  accentColor: "#A855F7"         # violet accent bar on the left of the container + avatar ring
+  accentColor: "#E53935"         # Ashan Gaming red — accent bar on the left of the container + avatar ring
 
   # 🖼️ Header thumbnail: the small square picture next to the title.
-  # url = remote link · path = local file uploaded with the message (Discord CDN
-  # links expire, a local file never does). Falls back to the member's avatar.
-  # Off for YT HIVE: the card layout shows the real server icon instead of a
-  # static logo.
+  # useServerIcon = the guild's own logo, resolved per server when the message
+  # is sent. url = remote link · path = local file uploaded with the message
+  # (Discord CDN links expire, a local file never does). Without any of them the
+  # member's own avatar is used.
   thumbnail:
-    enabled: false
-    url: ""
+    enabled: true
+    useServerIcon: true          # true = the SERVER's own logo, resolved per guild
+    url: ""                      # an explicit picture wins over useServerIcon
     path: ""                     # e.g. "./assets/welcome-thumbnail.gif" (wins over url)
 
   # 🖼️ Banner image at the bottom of the welcome message (the wide gif).
@@ -72,8 +69,8 @@ welcome:
   # Doubles as the fallback picture if the card render ever fails.
   image:
     enabled: true
-    url: ""
-    path: "./assets/welcome-yt-hive-purple.png"   # local file wins over url
+    url: "https://i.postimg.cc/jSLFtBX1/yuno-gasai-future-diary-3840x2160-ezgif-com-video-to-gif-converter.gif"
+    path: ""                     # optional local file (wins over url)
 
   # Legacy animated welcome GIF — only used when no banner image url is set.
   # source: "url"  -> uses the http(s) url below
@@ -87,13 +84,13 @@ welcome:
   # Footer line — rendered as small text INSIDE the container (below the card
   # image, never baked into the artwork). Also used by the classic layout.
   footer:
-    enabled: true
-    text: "Enjoy your stay in YT HIVE."
+    enabled: false
+    text: "Enjoy your stay in Ashan Gaming Official."
 
   # Credit line under the card: who invited the new member. Read from the
   # invite-tracking data; {inviter} becomes a mention, or "someone" when the
   # invite could not be resolved. "" = hidden.
-  invitedBy: "📨 Invited by {inviter}"
+  invitedBy: ""                  # e.g. "📨 Invited by {inviter}" ("" = hidden)
 
   # ── "Card" layout artwork (only used when layout: "card") ─────────────────
   # The image is drawn in memory: background + circular avatar (left) + text
@@ -101,16 +98,16 @@ welcome:
   # animated GIF background stays animated. Nothing is written to disk.
   card:
     background:
-      path: "./assets/welcome-yt-hive-purple.png"   # YT HIVE violet artwork (no text baked in)
+      path: "./assets/welcome-ashan-gaming-red.png"   # Ashan Gaming red artwork (no text baked in)
       url: ""              # used only when no local path is set
     heading: "WELCOME TO"                       # small line
     title: "{server}"                           # big line
-    subtitle: "You are member #{membercount} of the hive"
+    subtitle: "You are member #{membercount} of the server"
     mention: "{mention}"   # tiny line sent above the card — this is the ping; "" = no ping
     icon: true             # show the server icon next to the mention line
     # The text sits on a rounded "plate" so the card reads as one designed block.
     scrim: true            # false = bare text over the artwork
-    scrimColor: "#231044"  # plate tint ("#000000" = plain black)
+    scrimColor: "#2A0709"  # plate tint ("#000000" = plain black)
     scrimOpacity: 0.8      # 0 = invisible, 1 = solid
     scrimBorder: true      # 2px accent hairline around the plate
 
@@ -231,7 +228,7 @@ tickets:
 
   panel:
     channelId: "1570473665638961342"           # Default channel for /ticket panel ("" = current channel)
-    title: "🎫 YT HIVE Support Center"
+    title: "🎫 Ashan Gaming Official Support Center"
     description: "Need help? Select a category below.\nOur support team will assist you shortly."
 
   logs:
@@ -331,7 +328,7 @@ invites:
   minAccountAgeDays: 3      # Legacy base threshold; used when altDetection.minAccountAgeDays is unset
   trackLeaves: true         # Whether to count leaves against the inviter (a rejoin gives the point back)
   joinMessage: "📥 **{member}** joined using invite code `{code}` from **{inviter}** (now has **{inviterTotal}** invites)!"
-  rejoinMessage: "🔁 **{member}** rejoined the hive — originally invited by **{inviter}** (now has **{inviterTotal}** invites)."
+  rejoinMessage: "🔁 **{member}** rejoined the server — originally invited by **{inviter}** (now has **{inviterTotal}** invites)."
   altJoinMessage: "⚠️ **{member}** joined, but was flagged as a possible alt ({altReason}). Invited by **{inviter}**."
   leaveMessage: "📤 **{member}** left. They were invited by **{inviter}** (now has **{inviterTotal}** invites)."
   vanityJoinMessage: "🔗 **{member}** joined using the server vanity URL!"

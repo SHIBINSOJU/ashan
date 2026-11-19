@@ -1,4 +1,4 @@
-# YT HIVE Bot — Modular Discord Bot
+# Ashan Gaming Official Bot — Modular Discord Bot
 
 A production-quality, highly modular Discord bot built with **Node.js**, **discord.js v14**, and **MongoDB**. Features a complete Discord Components V2 ticket system, comprehensive invite tracking, server logging, automod, moderation, welcome cards, and utilities.
 
@@ -38,7 +38,7 @@ See [`setup.md`](setup.md) for step-by-step setup and configuration.
 | 📨 **Invite Tracking** | Automatic invite detection on join, join/leave/rejoin counters, alt-account flagging (young accounts or cloned avatars), plain-text announcements in a chosen channel, bonus invites, leaderboards | `/invites user`, `/invites leaderboard`, `/invites give`, `/invites remove`, `/invites reset`, `/invites sync`, `/invites channel` |
 | 🛡️ **Moderation** | Persistent warnings, kick, ban, unban, timeout, channel lock/unlock, slowmode, message purge | `/warn`, `/unwarn`, `/warnings`, `/kick`, `/ban`, `/unban`, `/timeout`, `/clear`, `/lock`, `/unlock`, `/slowmode` |
 | 📜 **Server Logs** | Centralized audit & event logging (member joins/leaves/invites, messages, voice, roles, channels, server changes) | `/logs` |
-| 👋 **Welcome** | Two per-server layouts: sectioned copy (title, steps, banner) or a generated avatar card image over the YT HIVE violet hexagon artwork — bold text on a tinted plate — with a greeting line, the member count, invite credit and a footer, plus `{placeholder}` support | `/welcome`, `/testwelcome` |
+| 👋 **Welcome** | Two per-server layouts: sectioned copy (bold header, greeting, copy, animated GIF banner, server-logo thumbnail) or a generated avatar card image over the Ashan Gaming red hexagon artwork — bold text on a tinted plate — plus `{placeholder}` support | `/welcome`, `/testwelcome` |
 | 🤖 **AutoMod** | Multi-rule automated moderation (anti-link, anti-invite, spam, duplicate messages, mention spam, caps, word filter, anti-raid) | `/automod status`, `/automod rule` |
 | 🔗 **Anti-Link** | URL blocking with role/channel exemptions, customizable warnings, and cooldowns | `/antilink` |
 | 🎭 **AutoRole** | Automatically assign roles to joining members with delay options | `/autorole` |
@@ -58,7 +58,7 @@ See [`setup.md`](setup.md) for step-by-step setup and configuration.
 DISCORD_TOKEN=your_bot_token_here
 CLIENT_ID=your_client_id_here
 GUILD_ID=your_server_id_here
-MONGODB_URI=mongodb://localhost:27017/yt_hive_bot
+MONGODB_URI=mongodb://localhost:27017/ashan_gaming_bot
 ```
 
 ### 2. Bot Configuration (`src/config/config.yml`)
@@ -78,11 +78,13 @@ Configure channels, roles, and categories:
   - Configure individual logging channels for `member`, `message`, `voice`, `channel`, `role`, `moderation`, `server`, and `invite`.
 - **`welcome:`**
   - `channelId`: channel for welcome messages.
-  - `layout`: `"card"` (one generated image with the member avatar over `card.background`) or `"classic"` (title/copy/steps/banner blocks).
+  - `layout`: `"classic"` (bold header + copy + `image` banner + server-logo thumbnail) or `"card"` (one generated image with the member avatar over `card.background`).
+  - `thumbnail.useServerIcon`: use the server's own logo as the header thumbnail (an explicit `url`/`path` wins).
+  - `image.url` / `image.path`: the banner media (GIFs keep animating); a local `path` is uploaded so it never expires.
   - `greeting`: the "👋 Welcome, {displayname}!" line above the message (server icon rides along when `card.icon` is on).
   - `card`: the heading / title / subtitle lines drawn on the artwork, plus the `{mention}` ping line and the rounded text plate (`scrimColor`, `scrimOpacity`, `scrimBorder`).
   - `invitedBy`: the invite-credit line under the card; `{inviter}` is the member who invited them (falls back to "someone").
-  - `footer`: the closing line ("Enjoy your stay in YT HIVE.") — Discord text, never baked into the image.
+  - `footer`: the closing line ("Enjoy your stay in Ashan Gaming Official.") — Discord text, never baked into the image.
   - `accentColor`: accent bar, avatar ring, plate hairline colour.
 
 ---

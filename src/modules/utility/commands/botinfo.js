@@ -20,7 +20,7 @@ module.exports = {
 
             await interaction.editReply({
                 ...buildInfoContainer({
-                    header: `🤖 ${client.user?.tag ?? 'YT HIVE Bot'}`,
+                    header: `🤖 ${client.user?.tag ?? 'Ashan Gaming Official'}`,
                     fields: [
                         { label: 'Bot name', value: client.user?.tag ?? 'Unknown' },
                         { label: 'Bot version', value: `v${botVersion}` },
@@ -34,7 +34,7 @@ module.exports = {
                         { label: 'Database', value: isDatabaseReady() ? '🟢 Connected' : '🔴 Disconnected' },
                         { label: 'Bot latency', value: client.ws.ping >= 0 ? `${client.ws.ping}ms` : 'Unavailable' }
                     ],
-                    accent: 0x5865F2
+                    accent: 0xE53935
                 }),
                 flags: [MessageFlags.IsComponentsV2]
             });

@@ -44,7 +44,7 @@ module.exports = {
                         { label: 'Boost level', value: `Level ${guild.premiumTier}` },
                         { label: 'Boosts', value: `${guild.premiumSubscriptionCount ?? 0}` }
                     ],
-                    accent: 0x5865F2
+                    accent: 0xE53935
                 }),
                 flags: [MessageFlags.IsComponentsV2]
             });

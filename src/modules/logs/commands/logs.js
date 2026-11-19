@@ -129,7 +129,7 @@ async function showStatus(interaction) {
         ...buildInfoContainer({
             header: `📋 Logging status for **${interaction.guild.name}**`,
             fields,
-            accent: 0x5865F2,
+            accent: 0xE53935,
             footer: 'Configure with /logs setup or /logs channel • Test with /logs test'
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
@@ -166,7 +166,7 @@ async function sendTest(interaction) {
     const ok = await sendLog(interaction.guild, category, {
         emoji: '📨',
         title: `Test Log — ${CATEGORIES[category].label}`,
-        accent: 0x5865F2,
+        accent: 0xE53935,
         thumbnailUrl: interaction.guild.iconURL?.({ size: 128 }) || null,
         fields: [
             { label: 'Category', value: CATEGORIES[category].label },

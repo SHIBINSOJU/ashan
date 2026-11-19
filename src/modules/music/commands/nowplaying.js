@@ -33,7 +33,7 @@ module.exports = {
         const total = track.length || 0;
         const progressBar = createProgressBar(position, total, 16);
 
-        const container = new ContainerBuilder().setAccentColor(0x5865F2);
+        const container = new ContainerBuilder().setAccentColor(0xE53935);
 
         const section = new SectionBuilder().addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`## 🎵 Now Playing\n**[${track.title}](${track.uri})**`)

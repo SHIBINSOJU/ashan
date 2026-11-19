@@ -15,7 +15,7 @@ function newBlockId() {
 
 function createDefaultState() {
     return {
-        accent: 0x5865F2,
+        accent: 0xE53935,
         header: { enabled: true, text: '🎉 Welcome to our server!' },
         blocks: [],
         thumbnail: { enabled: false, url: '', description: '' },

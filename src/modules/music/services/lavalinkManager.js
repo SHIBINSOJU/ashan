@@ -85,7 +85,7 @@ function initLavalink(client) {
             const channel = client.channels.cache.get(player.textId) || await client.channels.fetch(player.textId).catch(() => null);
             if (!channel || !channel.isTextBased()) return;
 
-            const container = new ContainerBuilder().setAccentColor(0x5865F2);
+            const container = new ContainerBuilder().setAccentColor(0xE53935);
 
             const section = new SectionBuilder().addTextDisplayComponents(
                 new TextDisplayBuilder().setContent(`## 🎵 Now Playing\n**[${track.title}](${track.uri})**`)

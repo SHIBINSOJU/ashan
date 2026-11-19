@@ -301,9 +301,9 @@ async function composeAvatarCard(member, config = {}) {
     const lines = resolveLines(member, config);
     if (lines.length === 0) return null;
 
-    const accentColor = parseHexColor(config.accentColor, 0x57f287ff);
-    // Plate behind the text: `scrimColor` is the tint (dark violet by default
-    // for the YT HIVE artwork) and `scrimOpacity` how solid it looks.
+    const accentColor = parseHexColor(config.accentColor, 0xe53935ff);
+    // Plate behind the text: `scrimColor` is the tint (dark red by default
+    // for the Ashan Gaming artwork) and `scrimOpacity` how solid it looks.
     const scrimOpacity = Math.min(1, Math.max(0, Number(config?.card?.scrimOpacity ?? 0.62)));
     const scrimTint = parseHexColor(config?.card?.scrimColor, 0x000000);
     const scrimColor = config?.card?.scrim === false

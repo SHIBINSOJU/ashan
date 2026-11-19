@@ -23,7 +23,7 @@ module.exports = {
                         { label: '🤖 Bots', value: `${bots}` },
                         { label: '👤 Humans', value: `${humans}` }
                     ],
-                    accent: 0x5865F2
+                    accent: 0xE53935
                 }),
                 flags: [MessageFlags.IsComponentsV2]
             });

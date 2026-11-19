@@ -110,7 +110,7 @@ async function roleList(interaction) {
                 { label: 'Administrators', value: '✅ Always allowed' },
                 { label: 'Authorized roles', value: lines.length > 0 ? lines.join(', ') : '_none — owner/admin only_' }
             ],
-            accent: 0x5865F2,
+            accent: 0xE53935,
             footer: 'Manage with /embedconfig role-add / role-remove (owner/admin only).'
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]

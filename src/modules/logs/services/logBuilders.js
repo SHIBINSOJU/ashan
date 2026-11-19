@@ -60,7 +60,7 @@ function avatarUrlOf(user) {
  * opts: { emoji, title, accent, thumbnailUrl, fields: [{label, value}], footer }
  * Fields with empty values are dropped. Values are truncated safely.
  */
-function buildLogMessage({ emoji = '📋', title = 'Log', accent = 0x5865F2, thumbnailUrl = null, fields = [], footer = null }) {
+function buildLogMessage({ emoji = '📋', title = 'Log', accent = 0xE53935, thumbnailUrl = null, fields = [], footer = null }) {
     const container = new ContainerBuilder();
     if (accent !== null && accent !== undefined) container.setAccentColor(accent);
 

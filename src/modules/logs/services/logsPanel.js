@@ -38,7 +38,7 @@ async function renderPanel(session, guild, notice = null) {
     const meta = CATEGORIES[selected];
     const cur = cfg[selected] || { enabled: false, channelId: null };
 
-    const panel = new ContainerBuilder().setAccentColor(0x5865F2);
+    const panel = new ContainerBuilder().setAccentColor(0xE53935);
     panel.addTextDisplayComponents(
         new TextDisplayBuilder().setContent('## 📋 Server Logs Setup')
     );

@@ -56,7 +56,7 @@ module.exports = {
                         { label: 'ID', value: `\`${created._id}\`` }
                     ],
                     footer: 'I will DM you. If your DMs are closed, I will ping you here instead.',
-                    accent: 0x5865F2
+                    accent: 0xE53935
                 }),
                 flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
             });

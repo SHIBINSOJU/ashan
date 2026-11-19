@@ -51,8 +51,8 @@ module.exports = {
                         .setDescription('Embed accent color (preset name or hex code #RRGGBB)')
                         .setRequired(false)
                         .addChoices(
-                            { name: 'Blurple', value: 'blurple' },
-                            { name: 'Red', value: 'red' },
+                            { name: 'Red (Default)', value: 'red' },
+                            { name: 'Crimson', value: 'crimson' },
                             { name: 'Green', value: 'green' },
                             { name: 'Gold / Yellow', value: 'gold' },
                             { name: 'Purple', value: 'purple' },
@@ -101,8 +101,8 @@ module.exports = {
                         .setDescription('Embed accent color')
                         .setRequired(false)
                         .addChoices(
-                            { name: 'Blurple', value: 'blurple' },
-                            { name: 'Red', value: 'red' },
+                            { name: 'Red (Default)', value: 'red' },
+                            { name: 'Crimson', value: 'crimson' },
                             { name: 'Green', value: 'green' },
                             { name: 'Gold / Yellow', value: 'gold' },
                             { name: 'Purple', value: 'purple' },

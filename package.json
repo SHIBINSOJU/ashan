@@ -1,7 +1,7 @@
 {
-  "name": "yt-hive-bot",
+  "name": "ashan-gaming-official-bot",
   "version": "1.0.0",
-  "description": "YT HIVE Discord Bot with Ticket System, Invite Tracking, and Moderation",
+  "description": "Ashan Gaming Official Discord Bot with Ticket System, Invite Tracking, and Moderation",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

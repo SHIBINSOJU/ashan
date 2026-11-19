@@ -41,8 +41,8 @@ module.exports = {
                         .setDescription('Preset accent color')
                         .setRequired(false)
                         .addChoices(
-                            { name: 'Blurple (Default)', value: 'blurple' },
-                            { name: 'Red', value: 'red' },
+                            { name: 'Red (Default)', value: 'red' },
+                            { name: 'Crimson', value: 'crimson' },
                             { name: 'Green', value: 'green' },
                             { name: 'Gold / Yellow', value: 'gold' },
                             { name: 'Purple', value: 'purple' },

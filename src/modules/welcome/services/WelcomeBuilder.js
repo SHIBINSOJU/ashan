@@ -45,15 +45,32 @@ function resolveAvatarURL(member) {
 }
 
 /**
+ * Highest-quality URL for the server's own logo (the guild icon) — the picture
+ * `thumbnail.useServerIcon: true` asks for. Returns null when the guild has no
+ * icon or the member object cannot reach it.
+ */
+function resolveServerLogoURL(member) {
+    try {
+        if (typeof member?.guild?.iconURL === 'function') return member.guild.iconURL({ size: 512 });
+    } catch { /* fall through — thumbnail is optional */ }
+    return null;
+}
+
+/**
  * Header thumbnail (the small square picture next to the title):
  *  - `thumbnail.url` / `thumbnail.path` when configured (e.g. the server logo),
+ *  - `thumbnail.useServerIcon: true` → the guild's own logo,
  *  - otherwise the joining member's own avatar (the previous behaviour).
  * `thumbnail.enabled: false` removes it entirely.
  */
 function resolveThumbnailURL(member, config, files) {
     if (config?.thumbnail?.enabled === false) return null;
     const configured = resolvePictureSource(config?.thumbnail, { files, prefix: 'thumb' });
-    return configured || resolveAvatarURL(member);
+    if (configured) return configured;
+    if (config?.thumbnail?.useServerIcon === true) {
+        return resolveServerLogoURL(member) || resolveAvatarURL(member);
+    }
+    return resolveAvatarURL(member);
 }
 
 /**
@@ -107,7 +124,7 @@ function resolveServerIconURL(member, config, files) {
  *   [card image]
  *   ──────────
  *   -# invitedBy ("📨 Invited by @x")
- *   -# footer ("Enjoy your stay in YT HIVE.")
+ *   -# footer ("Enjoy your stay in Ashan Gaming Official.")
  * Every line above/below the image is Discord text — the artwork never carries
  * copy. `extra` carries resolved tokens such as {inviter}.
  */

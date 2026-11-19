@@ -141,7 +141,7 @@ async function viewConfig(interaction) {
                 { label: 'Moderation logs', value: modLogEnabled ? '🟢 Enabled' : '🔴 Disabled' },
                 { label: 'Mod log channel', value: modLogChannelId ? `<#${modLogChannelId}>` : '_not set_' }
             ],
-            accent: 0x5865F2,
+            accent: 0xE53935,
             footer: 'Values shown are per-server overrides on top of the global config.yml defaults.'
         }),
         flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]

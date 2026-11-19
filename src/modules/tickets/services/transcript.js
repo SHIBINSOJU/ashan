@@ -192,7 +192,7 @@ function buildTranscriptHTML({ guild, ticket, categoryName, channelName, message
 .message{display:flex;gap:14px;padding:12px 8px;border-radius:8px}
 .message:hover{background:#2b2d31}
 .avatar{width:40px;height:40px;border-radius:50%;flex-shrink:0}
-.avatar-fallback{display:flex;align-items:center;justify-content:center;background:#5865f2;color:#fff;font-weight:800;font-size:18px}
+.avatar-fallback{display:flex;align-items:center;justify-content:center;background:#E53935;color:#fff;font-weight:800;font-size:18px}
 .message-body{min-width:0;flex:1}
 .message-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .author{font-weight:600;color:#fff}
@@ -200,7 +200,7 @@ function buildTranscriptHTML({ guild, ticket, categoryName, channelName, message
 .timestamp{color:#949ba4;font-size:12px}
 .edited{color:#949ba4;font-size:11px}
 .tag{font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px}
-.bot-tag{background:#5865f2;color:#fff}
+.bot-tag{background:#E53935;color:#fff}
 .system-tag{background:#949ba4;color:#111}
 .reply{color:#949ba4;font-size:12px;margin:4px 0;border-left:2px solid #4e5058;padding-left:8px}
 .content{font-size:15px;line-height:1.5;word-wrap:break-word;margin-top:2px}
@@ -211,7 +211,7 @@ function buildTranscriptHTML({ guild, ticket, categoryName, channelName, message
 .attachment-label{font-size:13px;color:#fff;font-weight:600}
 .attachment-url{font-size:12px;color:#00a8fc;word-break:break-all}
 .attachment-image{max-width:400px;max-height:300px;border-radius:8px;margin-top:8px;display:block}
-.embed{margin-top:8px;background:#2b2d31;border-left:4px solid #5865f2;border-radius:4px;padding:10px 12px}
+.embed{margin-top:8px;background:#2b2d31;border-left:4px solid #E53935;border-radius:4px;padding:10px 12px}
 .embed-title{font-weight:700;color:#fff}
 .embed-author{font-size:12px;color:#949ba4}
 .embed-desc{font-size:14px;margin-top:4px}

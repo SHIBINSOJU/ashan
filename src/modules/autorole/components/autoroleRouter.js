@@ -68,7 +68,7 @@ module.exports = {
                     ...buildInfoContainer({
                         header: 'Autorole clear cancelled',
                         fields: [{ label: 'Note', value: 'Configuration unchanged.' }],
-                        accent: 0x5865F2
+                        accent: 0xE53935
                     }),
                     flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral]
                 });

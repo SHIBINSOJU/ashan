@@ -40,7 +40,7 @@ const DEFAULTS = {
         avatarCloneCheck: true
     },
     joinMessage: '📥 **{member}** joined using invite code `{code}` from **{inviter}** (now has **{inviterTotal}** invites)!',
-    rejoinMessage: '🔁 **{member}** rejoined the hive — originally invited by **{inviter}** (now has **{inviterTotal}** invites).',
+    rejoinMessage: '🔁 **{member}** rejoined the server — originally invited by **{inviter}** (now has **{inviterTotal}** invites).',
     altJoinMessage: '⚠️ **{member}** joined, but was flagged as a possible alt ({altReason}). Invited by **{inviter}**.',
     leaveMessage: '📤 **{member}** left. They were invited by **{inviter}** (now has **{inviterTotal}** invites).',
     vanityJoinMessage: '🔗 **{member}** joined using the server vanity URL!',

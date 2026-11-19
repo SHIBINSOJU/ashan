@@ -20,7 +20,7 @@ const {
 const WelcomeBuilder = require('./WelcomeBuilder');
 const { normalizeLayout } = require('./settings');
 
-const ACCENT = 0x5865F2;
+const ACCENT = 0xE53935;
 const PREVIEW_MAX = 300;
 
 // Documentation only — placeholder expansion stays in src/utils/placeholders.js.

@@ -177,7 +177,7 @@ async function handleUserStats(interaction) {
     const avatarUrl = target.displayAvatarURL({ size: 256 });
     const isSelf = target.id === interaction.user.id;
 
-    const container = new ContainerBuilder().setAccentColor(0x5865F2);
+    const container = new ContainerBuilder().setAccentColor(0xE53935);
 
     const section = new SectionBuilder().addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`## 📨 ${isSelf ? 'Your Invites' : `${target.username}'s Invites`}`)
@@ -226,7 +226,7 @@ async function handleLeaderboard(interaction) {
 
     const top = await inviteRepository.getLeaderboard(interaction.guild.id, pageSize, skip);
 
-    const container = new ContainerBuilder().setAccentColor(0x5865F2);
+    const container = new ContainerBuilder().setAccentColor(0xE53935);
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`## 🏆 ${interaction.guild.name} - Invite Leaderboard`)
     );

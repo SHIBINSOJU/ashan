@@ -40,7 +40,7 @@ module.exports = {
         const start = (page - 1) * pageSize;
         const tracksOnPage = queue.slice(start, start + pageSize);
 
-        const container = new ContainerBuilder().setAccentColor(0x5865F2);
+        const container = new ContainerBuilder().setAccentColor(0xE53935);
 
         container.addTextDisplayComponents(
             new TextDisplayBuilder().setContent(`## 🎶 Music Queue — ${interaction.guild.name}`)

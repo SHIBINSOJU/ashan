@@ -26,7 +26,7 @@ function buildPollPayload(poll) {
             ? `📊 ${total} vote${total === 1 ? '' : 's'} so far — ends ${formatTimestamp(poll.endsAt)}`
             : `📊 ${total} vote${total === 1 ? '' : 's'} so far`;
 
-    const container = new ContainerBuilder().setAccentColor(poll.closed ? 0x808080 : 0x5865F2);
+    const container = new ContainerBuilder().setAccentColor(poll.closed ? 0x808080 : 0xE53935);
     container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`## 📊 ${poll.question}`)
     );

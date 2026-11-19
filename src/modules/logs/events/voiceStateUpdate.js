@@ -110,7 +110,7 @@ module.exports = {
             await sendLog(guild, 'voice', {
                 emoji: primary.emoji,
                 title,
-                accent: 0x5865F2,
+                accent: 0xE53935,
                 thumbnailUrl: user ? avatarUrlOf(user) : null,
                 fields,
                 footer: `ID: ${member.id}`
