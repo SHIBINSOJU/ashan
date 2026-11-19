@@ -4,9 +4,28 @@ const guildSettingsRepository = require('../../../database/repositories/guildSet
 const inviteRepository = require('../../../database/repositories/inviteRepository');
 const { findUsedInvite } = require('./inviteCache');
 const { detectAlt } = require('./altDetection');
-const { sendLog } = require('../../logs/services/logDispatcher');
-const { avatarUrlOf, fmtTimestamp, userLine } = require('../../logs/services/logBuilders');
 const { withRetry } = require('../../../utils/retry');
+
+// The server-logs module is optional: invite tracking must keep working in
+// deployments where src/modules/logs is missing or the module is disabled.
+function optionalRequire(modulePath, fallback) {
+    try {
+        return require(modulePath);
+    } catch {
+        return fallback;
+    }
+}
+
+const { sendLog } = optionalRequire('../../logs/services/logDispatcher', {
+    sendLog: async () => false
+});
+
+const logBuilders = optionalRequire('../../logs/services/logBuilders', {
+    avatarUrlOf: () => null,
+    fmtTimestamp: (timestamp) => (timestamp ? `<t:${Math.floor(timestamp / 1000)}:R>` : 'unknown'),
+    userLine: (user, member) => `<@${user?.id || member?.id}> (\`${user?.tag || user?.username || 'unknown'}\`)`
+});
+const { avatarUrlOf, fmtTimestamp, userLine } = logBuilders;
 
 // File-level defaults. Every string below can be overridden in config.yml and,
 // for the channel, per server through /invites channel (GuildSettings.invites).
@@ -151,6 +170,8 @@ function fillTemplate(template, data) {
     });
 }
 
+// Keys are lowercase because fillTemplate() looks placeholders up by their
+// lowercased name — `{inviterTotal}` must resolve `invitertotal`.
 function buildTemplateData(member, inviteResult, inviterUser, stats, alt) {
     const user = member.user || member;
     return {
@@ -162,8 +183,8 @@ function buildTemplateData(member, inviteResult, inviterUser, stats, alt) {
         server: member.guild?.name || 'this server',
         code: inviteResult?.code || 'unknown',
         inviter: inviterUser ? `<@${inviterUser.id}>` : 'someone',
-        inviterName: inviterUser?.username || 'someone',
-        inviterTotal: stats?.total ?? 0,
+        invitername: inviterUser?.username || 'someone',
+        invitertotal: stats?.total ?? 0,
         total: stats?.total ?? 0,
         regular: stats?.regular ?? 0,
         left: stats?.left ?? 0,
@@ -171,7 +192,7 @@ function buildTemplateData(member, inviteResult, inviterUser, stats, alt) {
         joins: stats?.joins ?? 0,
         bonus: stats?.bonus ?? 0,
         alts: stats?.fake ?? 0,
-        altReason: alt?.reasons?.length ? alt.reasons.join('; ') : 'possible alt account'
+        altreason: alt?.reasons?.length ? alt.reasons.join('; ') : 'possible alt account'
     };
 }
 
@@ -192,7 +213,14 @@ async function resolveAnnouncementChannel(guild, cfg) {
         { attempts: 2 }
     ).catch(() => null);
 
-    if (!channel || !channel.isTextBased?.() || !channel.viewable) return null;
+    if (!channel) {
+        logger.warn(`InviteTracker: announcement channel ${channelId} does not exist in guild ${guild.id}.`);
+        return null;
+    }
+    if (!channel.isTextBased?.() || !channel.viewable) {
+        logger.warn(`InviteTracker: cannot post in channel ${channelId} (guild ${guild.id}) — check View Channel / Send Messages for the bot.`);
+        return null;
+    }
     return channel;
 }
 

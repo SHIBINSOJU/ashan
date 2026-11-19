@@ -20,12 +20,21 @@ module.exports = {
     ],
     components: [],
     async initialize({ client }) {
-        if (client.isReady()) {
+        // Runs once: the invite cache must exist before the first join arrives.
+        let cached = false;
+        const warmCache = async () => {
+            if (cached) return;
+            cached = true;
             await initInviteCache(client);
+        };
+
+        if (client.isReady()) {
+            await warmCache();
         } else {
-            client.once('ready', async () => {
-                await initInviteCache(client);
-            });
+            // discord.js >= 14.16 emits `clientReady` (the old `ready` name is
+            // deprecated and disappears in v15).
+            client.once('clientReady', warmCache);
+            client.once('ready', warmCache);
         }
     }
 };

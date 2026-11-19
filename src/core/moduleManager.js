@@ -146,8 +146,11 @@ class ModuleManager {
                         this.client.on(event.name, (...args) => event.execute(...args, this.client));
                     }
 
-                    this.events.set(event.name, event);
-                    this.eventModules.set(event.name, moduleDef.name);
+                    // Several modules may listen to the same event (e.g.
+                    // guildMemberAdd for welcome, autorole and invites), so the
+                    // bookkeeping key is module + event, never the event alone.
+                    this.events.set(`${moduleDef.name}:${event.name}`, event);
+                    this.eventModules.set(`${moduleDef.name}:${event.name}`, moduleDef.name);
                     startupLogger.eventLoaded(event.name, moduleDef.name);
                 } catch (error) {
                     this.failedEvents.push({ name: event?.name || 'unknown', reason: error.message });
@@ -183,7 +186,10 @@ class ModuleManager {
 
     printLoadSummary() {
         const commands = [...this.commandModules.entries()].map(([name, moduleName]) => ({ name, moduleName }));
-        const events = [...this.eventModules.entries()].map(([name, moduleName]) => ({ name, moduleName }));
+        const events = [...this.eventModules.keys()].map(key => ({
+            name: key.slice(key.indexOf(':') + 1),
+            moduleName: this.eventModules.get(key)
+        }));
         const modules = [...this.modules.keys()].map(name => ({
             name,
             commands: this.countForModule(this.commandModules, name),
