@@ -12,6 +12,8 @@ const {
 } = require('discord.js');
 const inviteRepository = require('../../../database/repositories/inviteRepository');
 const guildSettingsRepository = require('../../../database/repositories/guildSettingsRepository');
+const logger = require('../../../core/logger');
+const { withRetry } = require('../../../utils/retry');
 const { cacheGuildInvites } = require('../services/inviteCache');
 const { resolveInviteConfig } = require('../services/inviteService');
 
@@ -116,21 +118,47 @@ module.exports = {
         }
 
         const subcommand = interaction.options.getSubcommand();
+        // Stats lookups hit the database and Discord, and a stuck query used to
+        // burn Discord's 3s acknowledgement window ("The application did not
+        // respond"). Acknowledge first, then fill in the answer.
+        const isPublic = subcommand === 'user' || subcommand === 'leaderboard';
 
-        if (subcommand === 'user') {
-            await handleUserStats(interaction);
-        } else if (subcommand === 'leaderboard') {
-            await handleLeaderboard(interaction);
-        } else if (subcommand === 'give' || subcommand === 'add') {
-            await handleGiveBonus(interaction);
-        } else if (subcommand === 'remove') {
-            await handleRemoveBonus(interaction);
-        } else if (subcommand === 'reset') {
-            await handleReset(interaction);
-        } else if (subcommand === 'sync') {
-            await handleSync(interaction);
-        } else if (subcommand === 'channel') {
-            await handleChannel(interaction);
+        try {
+            await withRetry(
+                () => interaction.deferReply(isPublic ? {} : { flags: MessageFlags.Ephemeral }),
+                { attempts: 2 }
+            );
+        } catch (error) {
+            // 10062 = the token expired before we could acknowledge (gateway lag
+            // or a stale/duplicate session). Nothing can answer it any more.
+            if (error?.code === 10062) {
+                logger.warn(`/invites ${subcommand}: interaction expired before acknowledgement (10062).`);
+                return;
+            }
+            throw error;
+        }
+
+        try {
+            if (subcommand === 'user') {
+                await handleUserStats(interaction);
+            } else if (subcommand === 'leaderboard') {
+                await handleLeaderboard(interaction);
+            } else if (subcommand === 'give' || subcommand === 'add') {
+                await handleGiveBonus(interaction);
+            } else if (subcommand === 'remove') {
+                await handleRemoveBonus(interaction);
+            } else if (subcommand === 'reset') {
+                await handleReset(interaction);
+            } else if (subcommand === 'sync') {
+                await handleSync(interaction);
+            } else if (subcommand === 'channel') {
+                await handleChannel(interaction);
+            }
+        } catch (error) {
+            logger.error(`/invites ${subcommand} failed: ${error.stack || error}`);
+            await interaction.editReply({
+                content: '❌ Could not complete that invite action. Please try again in a moment.'
+            }).catch(() => { /* response window already closed */ });
         }
     }
 };
@@ -143,7 +171,6 @@ function hasStaffPermission(interaction) {
 }
 
 async function handleUserStats(interaction) {
-    await interaction.deferReply();
     const target = interaction.options.getUser('target') || interaction.user;
     const stats = await inviteRepository.getStats(interaction.guild.id, target.id);
 
@@ -193,7 +220,6 @@ async function handleUserStats(interaction) {
 }
 
 async function handleLeaderboard(interaction) {
-    await interaction.deferReply();
     const page = interaction.options.getInteger('page') || 1;
     const pageSize = 10;
     const skip = (page - 1) * pageSize;
@@ -245,7 +271,7 @@ async function handleLeaderboard(interaction) {
 
 async function handleGiveBonus(interaction) {
     if (!hasStaffPermission(interaction)) {
-        return interaction.reply({
+        return interaction.editReply({
             content: '❌ You need the **Manage Server** permission to give bonus invites.',
             flags: MessageFlags.Ephemeral
         });
@@ -256,7 +282,7 @@ async function handleGiveBonus(interaction) {
 
     const stats = await inviteRepository.addBonus(interaction.guild.id, target.id, amount);
 
-    return interaction.reply({
+    return interaction.editReply({
         content: `✅ Successfully gave **+${amount}** bonus invites to ${target}! They now have **${stats.total}** total invites.`,
         flags: MessageFlags.Ephemeral
     });
@@ -264,7 +290,7 @@ async function handleGiveBonus(interaction) {
 
 async function handleRemoveBonus(interaction) {
     if (!hasStaffPermission(interaction)) {
-        return interaction.reply({
+        return interaction.editReply({
             content: '❌ You need the **Manage Server** permission to remove bonus invites.',
             flags: MessageFlags.Ephemeral
         });
@@ -275,7 +301,7 @@ async function handleRemoveBonus(interaction) {
 
     const stats = await inviteRepository.removeBonus(interaction.guild.id, target.id, amount);
 
-    return interaction.reply({
+    return interaction.editReply({
         content: `✅ Successfully removed **${amount}** bonus invites from ${target}! They now have **${stats.total}** total invites.`,
         flags: MessageFlags.Ephemeral
     });
@@ -283,7 +309,7 @@ async function handleRemoveBonus(interaction) {
 
 async function handleReset(interaction) {
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-        return interaction.reply({
+        return interaction.editReply({
             content: '❌ You need **Administrator** permission to reset invite statistics.',
             flags: MessageFlags.Ephemeral
         });
@@ -292,7 +318,7 @@ async function handleReset(interaction) {
     const target = interaction.options.getUser('target', true);
     await inviteRepository.resetStats(interaction.guild.id, target.id);
 
-    return interaction.reply({
+    return interaction.editReply({
         content: `✅ Successfully reset all invite statistics for ${target}.`,
         flags: MessageFlags.Ephemeral
     });
@@ -300,13 +326,12 @@ async function handleReset(interaction) {
 
 async function handleSync(interaction) {
     if (!hasStaffPermission(interaction)) {
-        return interaction.reply({
+        return interaction.editReply({
             content: '❌ You need **Manage Server** permission to re-synchronize invites.',
             flags: MessageFlags.Ephemeral
         });
     }
 
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     await cacheGuildInvites(interaction.guild);
 
     return interaction.editReply({
@@ -316,7 +341,7 @@ async function handleSync(interaction) {
 
 async function handleChannel(interaction) {
     if (!hasStaffPermission(interaction)) {
-        return interaction.reply({
+        return interaction.editReply({
             content: '❌ You need the **Manage Server** permission to set the invite announcement channel.',
             flags: MessageFlags.Ephemeral
         });
@@ -327,7 +352,7 @@ async function handleChannel(interaction) {
 
     if (!channel) {
         const current = cfg.logChannelId ? `<#${cfg.logChannelId}>` : '*not set*';
-        return interaction.reply({
+        return interaction.editReply({
             content: `📨 Invite announcements are currently sent to: ${current}\n` +
                 'Use `/invites channel channel:#channel` to change it.',
             flags: MessageFlags.Ephemeral
@@ -338,7 +363,7 @@ async function handleChannel(interaction) {
         $set: { 'invites.channelId': channel.id }
     });
 
-    return interaction.reply({
+    return interaction.editReply({
         content: `✅ Invite join/leave/rejoin/alt announcements will now be sent to ${channel}.\n` +
             '-# Make sure the bot can View Channel and Send Messages there.',
         flags: MessageFlags.Ephemeral
