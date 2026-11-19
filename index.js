@@ -110,7 +110,7 @@ async function start() {
     if (!hasPrivileged) {
         logger.warn('⚠️ Server Members Intent or Message Content Intent is disabled in the Discord Developer Portal.');
         logger.warn('⚠️ Running with standard gateway intents so all slash commands, tickets, music, and admin features run normally.');
-        logger.warn('⚠️ (To enable Invite Tracking and AutoMod, turn them ON at https://discord.com/developers/applications/1566350596339142726/bot)');
+        logger.warn(`⚠️ (To enable Invite Tracking and AutoMod, turn them ON at https://discord.com/developers/applications/${process.env.CLIENT_ID || 'YOUR_APP_ID'}/bot)`);
         client = createBotClient(false);
         moduleManager = new ModuleManager(client, configService);
     }

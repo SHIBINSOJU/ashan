@@ -27,6 +27,19 @@ npm start              # or: npm run dev (auto-restart via nodemon)
 
 See [`setup.md`](setup.md) for step-by-step setup and configuration.
 
+### Slash commands not showing up?
+
+Guild commands only exist in servers the bot has **joined** (with the `applications.commands` scope).
+If `GUILD_ID` points at another server, the deploy fails with `Missing Access` and nothing appears anywhere.
+The startup deploy now skips unknown guild IDs and falls back to every joined server, and two scripts help:
+
+```bash
+node scripts/deployCommands.js        # register/refresh slash commands without starting the whole bot
+node scripts/diagnoseCommands.js --live  # token → app → guilds → what Discord actually has registered
+```
+
+Press `Ctrl+R` in Discord if the commands are registered but the client still shows the old list.
+
 ---
 
 ## Features & Modules

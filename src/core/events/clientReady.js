@@ -96,14 +96,29 @@ async function deployCommands(client, ctx) {
         return;
     }
 
-    if (guildIds.length === 0) {
-        logger.error('GUILD_ID is not set in environment variables (guild registration required).');
-        startupLogger.commandRegistrationFailed('GUILD_ID is missing in environment variables (guild registration required).');
-        return;
+    // Guild commands only exist in servers the bot has actually joined. A stale
+    // or placeholder GUILD_ID used to fail the whole batch with "Missing Access"
+    // and leave every server without commands — so unmatched IDs are dropped,
+    // and when nothing matches we register to each joined server instead.
+    const joinedGuildIds = [...client.guilds.cache.keys()];
+    const unmatchedGuildIds = guildIds.filter(id => !client.guilds.cache.has(id));
+    if (unmatchedGuildIds.length > 0) {
+        logger.warn(`GUILD_ID ${unmatchedGuildIds.join(', ')} is not a server this bot is in — ignoring it. Commands only deploy to joined servers.`);
+    }
+
+    let targetGuildIds = guildIds.filter(id => client.guilds.cache.has(id));
+    if (targetGuildIds.length === 0) {
+        if (joinedGuildIds.length === 0) {
+            logger.error('The bot is not in any server yet, so slash commands cannot be registered.');
+            startupLogger.commandRegistrationFailed('The bot is not in any server yet.');
+            return;
+        }
+        logger.warn(`No usable GUILD_ID found; registering commands to every server the bot is in (${joinedGuildIds.length}). Set GUILD_ID to ${joinedGuildIds[0]} to pin it.`);
+        targetGuildIds = joinedGuildIds;
     }
 
     const rest = new REST({ version: '10' }).setToken(token);
-    const guildIdDisplay = guildIds.join(', ');
+    const guildIdDisplay = targetGuildIds.join(', ');
 
     startupLogger.commandRegistrationStart({
         count: commandData.length,
@@ -112,7 +127,7 @@ async function deployCommands(client, ctx) {
 
     try {
         await withRetry(async () => {
-            for (const guildId of guildIds) {
+            for (const guildId of targetGuildIds) {
                 // Bulk PUT replaces the guild's current slash command list.
                 // Stale/renamed commands are removed and new ones are updated instantly.
                 await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commandData });
