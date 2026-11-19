@@ -228,6 +228,7 @@ tickets:
 
   panel:
     channelId: "1486341055585456228"           # Default channel for /ticket panel ("" = current channel)
+    autoPost: true                             # Post (or refresh) this panel in channelId on every startup
     title: "🎫 ASHAN GAMING Support Centre"
     description: "Need help? Select a category below.\nOur support team will assist you shortly."
 

@@ -70,7 +70,8 @@ Open `src/config/config.yml` to set up your server channel and role IDs:
 tickets:
   enabled: true
   panel:
-    channelId: "YOUR_SUPPORT_CHANNEL_ID"      # Channel where /ticket panel is posted
+    channelId: "YOUR_SUPPORT_CHANNEL_ID"      # Channel where the ticket panel lives
+    autoPost: true                            # Post/refresh that panel on every startup (set false to only use /ticket panel)
     title: "🎫 ASHAN GAMING Support Centre"
     description: "Need help? Select a category below.\nOur support team will assist you shortly."
   logs:

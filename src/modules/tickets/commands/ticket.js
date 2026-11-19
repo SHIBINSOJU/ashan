@@ -12,7 +12,7 @@ const { buildInfoContainer } = require('../../../utils/componentsV2');
 const { isStaffOrAbove } = require('../../../utils/permissions');
 const ticketRepository = require('../../../database/repositories/ticketRepository');
 const { resolveTicketsConfig, getCategory } = require('../config');
-const { buildPanel } = require('../services/panel');
+const { publishPanel } = require('../services/panelPublisher');
 const {
     isStaffForTicket,
     canCloseTicket,
@@ -193,59 +193,26 @@ async function postPanel(interaction) {
         return;
     }
 
-    const payload = buildPanel(config);
-    const existing = await findExistingPanels(target, interaction.client);
+    const count = categories.length;
+    const summary = `${count} categor${count === 1 ? 'y' : 'ies'}`;
 
-    // Re-running /ticket panel refreshes the message already in the
-    // channel, so renames in config.yml replace stale branding instead
-    // of leaving an old panel (with its old text) behind.
-    let refreshed = null;
-    if (existing.length > 0) {
-        refreshed = existing[0];
-        try {
-            await refreshed.edit(payload);
-        } catch (error) {
-            logger.warn(`Ticket panel refresh failed (${refreshed.id}): ${error.message}`);
-            refreshed = null;
-        }
-    }
-
-    if (refreshed) {
-        // Anything else that looks like a ticket panel in this channel
-        // is a stale duplicate from an earlier post — drop it so only the
-        // refreshed panel stays visible.
-        for (const stale of existing.slice(1)) {
-            await stale.delete().catch(() => null);
-        }
-        await interaction.editReply(`✅ Ticket panel refreshed in ${target} with ${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}.`);
+    // Same publisher as the startup hook: an existing panel in the channel is
+    // edited in place (renames in config.yml replace stale branding), and
+    // duplicates from earlier posts are cleaned up.
+    let result;
+    try {
+        result = await publishPanel({ client: interaction.client, channel: target, config });
+    } catch (error) {
+        logger.warn(`Ticket panel publish failed in ${target.id}: ${error.message}`);
+        await interaction.editReply(`❌ Could not post the ticket panel: ${error.message}`);
         return;
     }
 
-    await target.send(payload);
-    await interaction.editReply(`✅ Ticket panel posted in ${target} with ${categories.length} categor${categories.length === 1 ? 'y' : 'ies'}.`);
-}
-
-// Panel messages are identified by the select menu they carry
-// (ticket:select:<panelId>), so panels posted before a rebrand are still
-// recognised and can be edited in place. Newest first.
-async function findExistingPanels(channel, client) {
-    const botId = client?.user?.id;
-    let messages;
-    try {
-        messages = await channel.messages.fetch({ limit: 50 });
-    } catch (error) {
-        logger.warn(`Ticket panel lookup failed in ${channel.id}: ${error.message}`);
-        return [];
-    }
-    return [...messages.filter((message) => {
-        if (botId && message.author?.id !== botId) return false;
-        if (!Array.isArray(message.components)) return false;
-        return message.components.some((row) =>
-            (row.components || []).some((component) =>
-                String(component.customId || '').startsWith('ticket:select:')
-            )
-        );
-    }).values()];
+    await interaction.editReply(
+        result.status === 'refreshed'
+            ? `✅ Ticket panel refreshed in ${target} with ${summary}.`
+            : `✅ Ticket panel posted in ${target} with ${summary}.`
+    );
 }
 
 async function loadCurrentTicket(interaction) {

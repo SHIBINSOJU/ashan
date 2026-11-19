@@ -64,7 +64,8 @@ MONGODB_URI=mongodb://localhost:27017/ashan_gaming_bot
 ### 2. Bot Configuration (`src/config/config.yml`)
 Configure channels, roles, and categories:
 - **`tickets:`**
-  - `panel.channelId`: channel where `/ticket panel` posts the support message.
+  - `panel.channelId`: channel where the support panel lives.
+  - `panel.autoPost`: post (or refresh in place) that panel on every startup — `true` by default, so the panel survives restarts and is never duplicated.
   - `logs.channelId`: channel where closed ticket transcripts and audit logs go.
   - `support_role_id`: global support role ID pinged when a ticket opens.
   - `categories:`: configure departments (e.g. `general`, `report`, `purchase`), each with its own Discord category ID and staff roles.

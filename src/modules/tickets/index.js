@@ -5,7 +5,9 @@ module.exports = {
         require('./commands/delete'),
         require('./commands/close')
     ],
-    events: [],
+    events: [
+        require('./events/clientReady')
+    ],
     components: [
         require('./components/ticketRouter'),
         require('./modals/ticketModals')
