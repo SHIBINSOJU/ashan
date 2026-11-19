@@ -142,12 +142,16 @@ Interactive 15-minute session that builds a Components V2 message (title, descri
 `/ping` (latency), `/uptime`, `/botinfo`, `/serverinfo`, `/userinfo`, `/avatar`, `/banner`, `/servericon`, `/membercount`, `/roleinfo`, `/channelinfo`.
 
 ### 📨 Invites (`/invites`)
-- `/invites user [target]` — Shows detailed invite statistics (Total, Regular, Left, Bonus, Fake) in a Components V2 card.
+- `/invites user [target]` — Shows detailed invite statistics (Total, Joins, Regular, Rejoins, Left, Alts/Fake, Bonus) in a Components V2 card.
 - `/invites leaderboard [page]` — Shows the server's top inviters leaderboard.
-- `/invites add <target> <amount>` — Adds bonus invites to a member (Admin / Manage Server).
+- `/invites give <target> <amount>` — Gives bonus invites to a member (Admin / Manage Server).
+- `/invites add <target> <amount>` — Alias of `give`.
 - `/invites remove <target> <amount>` — Removes bonus invites from a member (Admin / Manage Server).
 - `/invites reset <target>` — Resets invite statistics for a member (Admin).
 - `/invites sync` — Resynchronizes the in-memory invite cache with Discord.
+- `/invites channel [#channel]` — Sets (or shows) the channel where plain-text join / leave / rejoin / alt announcements are posted (Admin / Manage Server). Stored per server in `GuildSettings.invites.channelId`; falls back to `invites.logChannelId` in `config.yml`.
+
+Invite accounting: a first join credits `regular` (or `fake` when flagged as a possible alt — account younger than `altDetection.minAccountAgeDays` or sharing a custom avatar with an existing human member). A later join by the same member is counted as a `rejoin` (no duplicate regular credit, and one `left` point is given back), and every join increments `joins`. Leaves are only counted once per departure thanks to `MemberInvite.hasLeft`.
 
 ### ⚙️ Setup & Help
 - `/setup welcome-channel|welcome-toggle|welcome-bots|modlog-channel|modlog-toggle|view` — per-server MongoDB overrides (Manage Server only).

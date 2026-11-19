@@ -35,7 +35,7 @@ See [`setup.md`](setup.md) for step-by-step setup and configuration.
 |---|---|---|
 | 🎫 **Tickets** | Components V2 support ticket panel, department select, reason modal, staff claim/reclaim, transcripts, close/delete archive flows | `/ticket panel`, `/close`, `/delete` |
 | 🎵 **Music (Lavalink)** | High-quality audio playback via Lavalink (YouTube, SoundCloud, Spotify URLs), interactive queues, progress bars, volume, loop, shuffle | `/play`, `/pause`, `/resume`, `/skip`, `/stop`, `/nowplaying`, `/queue`, `/volume`, `/loop`, `/shuffle` |
-| 📨 **Invite Tracking** | Automatic invite detection on join, member leave tracking, fake account detection (<3 days), bonus invites, leaderboards | `/invites user`, `/invites leaderboard`, `/invites add`, `/invites remove`, `/invites reset`, `/invites sync` |
+| 📨 **Invite Tracking** | Automatic invite detection on join, join/leave/rejoin counters, alt-account flagging (young accounts or cloned avatars), plain-text announcements in a chosen channel, bonus invites, leaderboards | `/invites user`, `/invites leaderboard`, `/invites give`, `/invites remove`, `/invites reset`, `/invites sync`, `/invites channel` |
 | 🛡️ **Moderation** | Persistent warnings, kick, ban, unban, timeout, channel lock/unlock, slowmode, message purge | `/warn`, `/unwarn`, `/warnings`, `/kick`, `/ban`, `/unban`, `/timeout`, `/clear`, `/lock`, `/unlock`, `/slowmode` |
 | 📜 **Server Logs** | Centralized audit & event logging (member joins/leaves/invites, messages, voice, roles, channels, server changes) | `/logs` |
 | 👋 **Welcome** | Two per-server layouts: sectioned copy (title, steps, banner) or a generated avatar card image over the YT HIVE violet hexagon artwork — bold text on a tinted plate — with a greeting line, the member count, invite credit and a footer, plus `{placeholder}` support | `/welcome`, `/testwelcome` |
@@ -69,9 +69,11 @@ Configure channels, roles, and categories:
   - `support_role_id`: global support role ID pinged when a ticket opens.
   - `categories:`: configure departments (e.g. `general`, `report`, `purchase`), each with its own Discord category ID and staff roles.
 - **`invites:`**
-  - `logChannelId`: channel for invite join/leave notifications (optional, falls back to `logs.invite`).
-  - `minAccountAgeDays`: accounts under this age are flagged as fake invites (default: 3 days).
-  - `trackLeaves`: whether member departures count against the inviter.
+  - `logChannelId`: channel for the plain-text join/leave/rejoin/alt messages (optional; `/invites channel` sets a per-server channel that wins over this).
+  - `minAccountAgeDays`: legacy base threshold, used when `altDetection.minAccountAgeDays` is unset.
+  - `trackLeaves`: whether member departures count against the inviter (a rejoin gives the point back).
+  - `altDetection.minAccountAgeDays` / `avatarCloneCheck`: flag possible alt accounts (counted in the separate `fake` bucket).
+  - `joinMessage` / `rejoinMessage` / `altJoinMessage` / `leaveMessage` / `vanityJoinMessage` / `unknownJoinMessage`: announcement templates (`{member}`, `{code}`, `{inviter}`, `{inviterTotal}`, `{rejoins}`, `{left}`, `{alts}`, `{altReason}`, …).
 - **`logs:`**
   - Configure individual logging channels for `member`, `message`, `voice`, `channel`, `role`, `moderation`, `server`, and `invite`.
 - **`welcome:`**

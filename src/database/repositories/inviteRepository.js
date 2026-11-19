@@ -4,6 +4,8 @@ const { isDatabaseReady, isUsingLocalStorage } = require('../connection');
 const { getStore } = require('../localStorage');
 const logger = require('../../core/logger');
 
+const EMPTY_STATS = { regular: 0, left: 0, fake: 0, bonus: 0, rejoins: 0, joins: 0 };
+
 function getStatsStore() {
     return getStore('invite_stats');
 }
@@ -13,8 +15,8 @@ function getMemberStore() {
 }
 
 // In-memory fallbacks when neither MongoDB nor LocalStorage is functioning
-const memoryStats = new Map(); // key: `${guildId}:${userId}` -> { regular, left, fake, bonus }
-const memoryMembers = new Map(); // key: `${guildId}:${memberId}` -> { inviterId, code, isFake, joinedAt }
+const memoryStats = new Map(); // key: `${guildId}:${userId}` -> counters
+const memoryMembers = new Map(); // key: `${guildId}:${memberId}` -> { inviterId, code, isFake, hasLeft, joinedAt }
 
 function statsKey(guildId, userId) {
     return `${guildId}:${userId}`;
@@ -31,54 +33,41 @@ function computeTotal(stat) {
 
 function formatResult(doc) {
     if (!doc) {
-        return { regular: 0, left: 0, fake: 0, bonus: 0, total: 0 };
+        return { ...EMPTY_STATS, total: 0 };
     }
     const regular = doc.regular || 0;
-    const left = doc.left || 0;
+    const left = Math.max(0, doc.left || 0);
     const fake = doc.fake || 0;
     const bonus = doc.bonus || 0;
+    const rejoins = doc.rejoins || 0;
+    // Older documents have no `joins` counter — rebuild it from what we know.
+    const joins = doc.joins !== undefined ? doc.joins : regular + fake + rejoins;
     return {
         regular,
         left,
         fake,
         bonus,
+        rejoins,
+        joins,
         total: Math.max(0, regular + bonus - left)
     };
 }
 
-async function getStats(guildId, userId) {
-    if (isUsingLocalStorage()) {
-        try {
-            const doc = await getStatsStore().findOne({ guildId, userId });
-            return formatResult(doc);
-        } catch (err) {
-            logger.error(`inviteRepository.getStats local failed: ${err.message}`);
-            return formatResult(null);
-        }
+/** Counter bucket after applying an increment, never below zero. */
+function applyInc(bucket, inc) {
+    const next = { ...EMPTY_STATS, ...bucket };
+    for (const [field, amount] of Object.entries(inc || {})) {
+        next[field] = Math.max(0, (Number(next[field]) || 0) + Number(amount));
     }
-    if (!isDatabaseReady()) {
-        const mem = memoryStats.get(statsKey(guildId, userId));
-        return formatResult(mem);
-    }
-    try {
-        const doc = await InviteStats.findOne({ guildId, userId }).lean();
-        return formatResult(doc);
-    } catch (err) {
-        logger.error(`inviteRepository.getStats failed: ${err.message}`);
-        return formatResult(memoryStats.get(statsKey(guildId, userId)));
-    }
+    return next;
 }
 
-/** Read-only: who invited this member (null when unknown). */
-async function getJoinRecord(guildId, memberId) {
+async function readMemberDoc(guildId, memberId) {
     if (isUsingLocalStorage()) {
-        // Local disk is the source of truth in this mode — never fall through
-        // to a Mongoose query that would buffer while disconnected.
         try {
-            const doc = await getMemberStore().findOne({ guildId, memberId });
-            return doc ? { inviterId: doc.inviterId || null, code: doc.code || null, isFake: !!doc.isFake } : null;
+            return await getMemberStore().findOne({ guildId, memberId }).lean();
         } catch (err) {
-            logger.error(`inviteRepository.getJoinRecord local failed: ${err.message}`);
+            logger.error(`inviteRepository.readMemberDoc local failed: ${err.message}`);
             return null;
         }
     }
@@ -86,211 +75,215 @@ async function getJoinRecord(guildId, memberId) {
     if (isDatabaseReady()) {
         try {
             const doc = await MemberInvite.findOne({ guildId, memberId }).lean();
-            if (doc) {
-                return { inviterId: doc.inviterId || null, code: doc.code || null, isFake: !!doc.isFake };
-            }
+            if (doc) return doc;
         } catch (err) {
-            logger.error(`inviteRepository.getJoinRecord DB failed: ${err.message}`);
+            logger.error(`inviteRepository.readMemberDoc DB failed: ${err.message}`);
         }
     }
 
-    const mem = memoryMembers.get(memberKey(guildId, memberId));
-    if (!mem) return null;
-    return { inviterId: mem.inviterId || null, code: mem.code || null, isFake: !!mem.isFake };
+    return memoryMembers.get(memberKey(guildId, memberId)) || null;
 }
 
-async function recordJoin(guildId, memberId, inviterId, code, isFake = false) {
+async function writeMemberDoc(guildId, memberId, fields) {
+    const now = new Date();
+
     if (isUsingLocalStorage()) {
         try {
-            await getMemberStore().findOneAndUpdate(
+            return await getMemberStore().findOneAndUpdate(
                 { guildId, memberId },
-                { inviterId, code, isFake, joinedAt: new Date().toISOString() },
+                { $set: { ...fields, updatedAt: now.toISOString() } },
                 { upsert: true, returnDocument: 'after' }
             );
-
-            let updatedStats = null;
-            if (inviterId) {
-                const inc = isFake ? { fake: 1 } : { regular: 1 };
-                const doc = await getStatsStore().findOneAndUpdate(
-                    { guildId, userId: inviterId },
-                    { $inc: inc },
-                    { upsert: true, returnDocument: 'after' }
-                );
-                updatedStats = formatResult(doc);
-            }
-            return updatedStats;
         } catch (err) {
-            logger.error(`inviteRepository.recordJoin local failed: ${err.message}`);
+            logger.error(`inviteRepository.writeMemberDoc local failed: ${err.message}`);
         }
     }
 
-    // Record member mapping in memory
-    memoryMembers.set(memberKey(guildId, memberId), {
-        inviterId,
-        code,
-        isFake,
-        joinedAt: new Date()
-    });
+    const current = memoryMembers.get(memberKey(guildId, memberId)) || {};
+    memoryMembers.set(memberKey(guildId, memberId), { ...current, ...fields, updatedAt: now });
 
-    let updatedStats = null;
-
-    if (inviterId) {
-        const mKey = statsKey(guildId, inviterId);
-        const mem = memoryStats.get(mKey) || { regular: 0, left: 0, fake: 0, bonus: 0 };
-        if (isFake) {
-            mem.fake = (mem.fake || 0) + 1;
-        } else {
-            mem.regular = (mem.regular || 0) + 1;
-        }
-        memoryStats.set(mKey, mem);
-        updatedStats = formatResult(mem);
-    }
-
-    if (isDatabaseReady()) {
+    if (isDatabaseReady() && !isUsingLocalStorage()) {
         try {
-            await MemberInvite.findOneAndUpdate(
+            return await MemberInvite.findOneAndUpdate(
                 { guildId, memberId },
-                { inviterId, code, isFake, joinedAt: new Date() },
+                { $set: fields, $setOnInsert: { joinedAt: fields.joinedAt || now } },
                 { upsert: true, returnDocument: 'after' }
             );
-
-            if (inviterId) {
-                const inc = isFake ? { fake: 1 } : { regular: 1 };
-                const doc = await InviteStats.findOneAndUpdate(
-                    { guildId, userId: inviterId },
-                    { $inc: inc },
-                    { upsert: true, returnDocument: 'after' }
-                );
-                updatedStats = formatResult(doc);
-            }
         } catch (err) {
-            logger.error(`inviteRepository.recordJoin DB failed: ${err.message}`);
+            logger.error(`inviteRepository.writeMemberDoc DB failed: ${err.message}`);
         }
     }
 
-    return updatedStats;
+    return null;
 }
 
-async function recordLeave(guildId, memberId) {
+async function readStatsDoc(guildId, userId) {
     if (isUsingLocalStorage()) {
         try {
-            const memberDoc = await getMemberStore().findOne({ guildId, memberId });
-            if (!memberDoc || !memberDoc.inviterId) {
-                return { inviterId: null, stats: null };
-            }
-            const inviterId = memberDoc.inviterId;
-            const doc = await getStatsStore().findOneAndUpdate(
-                { guildId, userId: inviterId },
-                { $inc: { left: 1 } },
-                { upsert: true, returnDocument: 'after' }
-            );
-            return { inviterId, stats: formatResult(doc) };
+            return await getStatsStore().findOne({ guildId, userId }).lean();
         } catch (err) {
-            logger.error(`inviteRepository.recordLeave local failed: ${err.message}`);
+            logger.error(`inviteRepository.readStatsDoc local failed: ${err.message}`);
+            return null;
         }
     }
-
-    let inviterId = null;
-    let isFake = false;
-
-    // First check database if ready
-    if (isDatabaseReady()) {
-        try {
-            const memberDoc = await MemberInvite.findOne({ guildId, memberId }).lean();
-            if (memberDoc) {
-                inviterId = memberDoc.inviterId;
-                isFake = memberDoc.isFake;
-            }
-        } catch (err) {
-            logger.error(`inviteRepository.recordLeave DB lookup failed: ${err.message}`);
-        }
-    }
-
-    // Fall back to memory if DB didn't find
-    if (!inviterId) {
-        const mem = memoryMembers.get(memberKey(guildId, memberId));
-        if (mem) {
-            inviterId = mem.inviterId;
-            isFake = mem.isFake;
-        }
-    }
-
-    if (!inviterId) {
-        return { inviterId: null, stats: null };
-    }
-
-    // Update inviter's left count
-    const mKey = statsKey(guildId, inviterId);
-    const mem = memoryStats.get(mKey) || { regular: 0, left: 0, fake: 0, bonus: 0 };
-    mem.left = (mem.left || 0) + 1;
-    memoryStats.set(mKey, mem);
-    let updatedStats = formatResult(mem);
 
     if (isDatabaseReady()) {
         try {
-            const doc = await InviteStats.findOneAndUpdate(
-                { guildId, userId: inviterId },
-                { $inc: { left: 1 } },
-                { upsert: true, returnDocument: 'after' }
-            );
-            updatedStats = formatResult(doc);
+            const doc = await InviteStats.findOne({ guildId, userId }).lean();
+            if (doc) return doc;
         } catch (err) {
-            logger.error(`inviteRepository.recordLeave DB update failed: ${err.message}`);
+            logger.error(`inviteRepository.readStatsDoc DB failed: ${err.message}`);
         }
     }
 
-    return { inviterId, stats: updatedStats };
+    return memoryStats.get(statsKey(guildId, userId)) || null;
 }
 
-async function addBonus(guildId, userId, amount) {
+/** Increment counters for an inviter and return the formatted stats. */
+async function bumpStats(guildId, userId, inc) {
     if (isUsingLocalStorage()) {
         try {
             const doc = await getStatsStore().findOneAndUpdate(
                 { guildId, userId },
-                { $inc: { bonus: amount } },
+                { $inc: inc },
                 { upsert: true, returnDocument: 'after' }
             );
             return formatResult(doc);
         } catch (err) {
-            logger.error(`inviteRepository.addBonus local failed: ${err.message}`);
-            return formatResult(null);
+            logger.error(`inviteRepository.bumpStats local failed: ${err.message}`);
         }
     }
 
-    const mKey = statsKey(guildId, userId);
-    const mem = memoryStats.get(mKey) || { regular: 0, left: 0, fake: 0, bonus: 0 };
-    mem.bonus = (mem.bonus || 0) + amount;
-    memoryStats.set(mKey, mem);
-    let updatedStats = formatResult(mem);
+    const key = statsKey(guildId, userId);
+    const next = applyInc(memoryStats.get(key), inc);
+    memoryStats.set(key, next);
+    let result = formatResult(next);
 
-    if (isDatabaseReady()) {
+    if (isDatabaseReady() && !isUsingLocalStorage()) {
         try {
             const doc = await InviteStats.findOneAndUpdate(
                 { guildId, userId },
-                { $inc: { bonus: amount } },
+                { $inc: inc },
                 { upsert: true, returnDocument: 'after' }
             );
-            updatedStats = formatResult(doc);
+            result = formatResult(doc);
         } catch (err) {
-            logger.error(`inviteRepository.addBonus DB failed: ${err.message}`);
+            logger.error(`inviteRepository.bumpStats DB failed: ${err.message}`);
         }
     }
 
-    return updatedStats;
+    return result;
+}
+
+/** Undo one counted leave (used when a member returns). Never goes below 0. */
+async function releaseLeave(guildId, userId) {
+    const raw = await readStatsDoc(guildId, userId);
+    if (!raw || (Number(raw.left) || 0) <= 0) return null;
+    return bumpStats(guildId, userId, { left: -1 });
+}
+
+async function getStats(guildId, userId) {
+    return formatResult(await readStatsDoc(guildId, userId));
+}
+
+/** Read-only: who invited this member (null when unknown). */
+async function getJoinRecord(guildId, memberId) {
+    const doc = await readMemberDoc(guildId, memberId);
+    if (!doc) return null;
+    return {
+        inviterId: doc.inviterId || null,
+        code: doc.code || null,
+        isFake: !!doc.isFake
+    };
+}
+
+/**
+ * Records a join. Returns:
+ *   { stats, isRejoin, previousInviterId, inviterId }
+ * — `stats` is null when the join could not be credited to an inviter.
+ */
+async function recordJoin(guildId, memberId, inviterId, code, isFake = false) {
+    const previous = await readMemberDoc(guildId, memberId);
+    const isRejoin = Boolean(previous);
+    const previousInviterId = previous?.inviterId || null;
+    // A rejoin through an unknown/vanity link keeps the original credit.
+    const creditedInviterId = inviterId || (isRejoin ? previousInviterId : null);
+
+    await writeMemberDoc(guildId, memberId, {
+        inviterId: creditedInviterId || null,
+        code: code || null,
+        isFake: !!isFake,
+        hasLeft: false,
+        leftAt: null,
+        joinedAt: new Date()
+    });
+
+    let stats = null;
+
+    if (creditedInviterId) {
+        if (isRejoin) {
+            // The member came back — give the leave point back to whoever
+            // was originally credited, then credit the rejoin.
+            if (previousInviterId && previousInviterId !== creditedInviterId) {
+                await releaseLeave(guildId, previousInviterId);
+            } else {
+                await releaseLeave(guildId, creditedInviterId);
+            }
+            stats = await bumpStats(guildId, creditedInviterId, { rejoins: 1, joins: 1 });
+        } else {
+            stats = await bumpStats(
+                guildId,
+                creditedInviterId,
+                isFake ? { fake: 1, joins: 1 } : { regular: 1, joins: 1 }
+            );
+        }
+    }
+
+    return { stats, isRejoin, previousInviterId, inviterId: creditedInviterId || null };
+}
+
+/**
+ * Records a leave against the inviter. Returns:
+ *   { inviterId, stats, isFake, alreadyCounted }
+ * `alreadyCounted` is true when the member had already been counted as left.
+ */
+async function recordLeave(guildId, memberId) {
+    const memberDoc = await readMemberDoc(guildId, memberId);
+    if (!memberDoc || !memberDoc.inviterId) {
+        return { inviterId: null, stats: null, isFake: false, alreadyCounted: false };
+    }
+
+    if (memberDoc.hasLeft) {
+        return { inviterId: memberDoc.inviterId, stats: null, isFake: !!memberDoc.isFake, alreadyCounted: true };
+    }
+
+    await writeMemberDoc(guildId, memberId, { hasLeft: true, leftAt: new Date() });
+    const stats = await bumpStats(guildId, memberDoc.inviterId, { left: 1 });
+
+    return {
+        inviterId: memberDoc.inviterId,
+        stats,
+        isFake: !!memberDoc.isFake,
+        alreadyCounted: false
+    };
+}
+
+async function addBonus(guildId, userId, amount) {
+    return bumpStats(guildId, userId, { bonus: amount });
 }
 
 async function removeBonus(guildId, userId, amount) {
-    return addBonus(guildId, userId, -amount);
+    return bumpStats(guildId, userId, { bonus: -amount });
 }
 
 async function resetStats(guildId, userId) {
-    const zero = { regular: 0, left: 0, fake: 0, bonus: 0, total: 0 };
+    const zero = { ...EMPTY_STATS, total: 0 };
 
     if (isUsingLocalStorage()) {
         try {
             await getStatsStore().findOneAndUpdate(
                 { guildId, userId },
-                { regular: 0, left: 0, fake: 0, bonus: 0 },
+                { $set: { ...EMPTY_STATS } },
                 { upsert: true }
             );
             return zero;
@@ -300,14 +293,13 @@ async function resetStats(guildId, userId) {
         }
     }
 
-    const mKey = statsKey(guildId, userId);
-    memoryStats.set(mKey, zero);
+    memoryStats.set(statsKey(guildId, userId), { ...EMPTY_STATS });
 
-    if (isDatabaseReady()) {
+    if (isDatabaseReady() && !isUsingLocalStorage()) {
         try {
             await InviteStats.findOneAndUpdate(
                 { guildId, userId },
-                { regular: 0, left: 0, fake: 0, bonus: 0 },
+                { $set: { ...EMPTY_STATS } },
                 { upsert: true }
             );
         } catch (err) {
@@ -318,18 +310,24 @@ async function resetStats(guildId, userId) {
     return zero;
 }
 
+function mapRow(row) {
+    return {
+        userId: row.userId,
+        regular: row.regular || 0,
+        left: Math.max(0, row.left || 0),
+        fake: row.fake || 0,
+        bonus: row.bonus || 0,
+        rejoins: row.rejoins || 0,
+        joins: row.joins !== undefined ? row.joins : (row.regular || 0) + (row.fake || 0) + (row.rejoins || 0),
+        total: computeTotal(row)
+    };
+}
+
 async function getLeaderboard(guildId, limit = 10, skip = 0) {
     if (isUsingLocalStorage()) {
         try {
             const allDocs = await getStatsStore().find({ guildId });
-            const list = allDocs.map(r => ({
-                userId: r.userId,
-                regular: r.regular || 0,
-                left: r.left || 0,
-                fake: r.fake || 0,
-                bonus: r.bonus || 0,
-                total: Math.max(0, (r.regular || 0) + (r.bonus || 0) - (r.left || 0))
-            }));
+            const list = allDocs.map(mapRow);
             list.sort((a, b) => b.total - a.total || b.regular - a.regular);
             return list.slice(skip, skip + limit);
         } catch (err) {
@@ -362,14 +360,7 @@ async function getLeaderboard(guildId, limit = 10, skip = 0) {
                 { $limit: limit }
             ]);
 
-            return results.map(r => ({
-                userId: r.userId,
-                regular: r.regular || 0,
-                left: r.left || 0,
-                fake: r.fake || 0,
-                bonus: r.bonus || 0,
-                total: r.total || 0
-            }));
+            return results.map(mapRow);
         } catch (err) {
             logger.error(`inviteRepository.getLeaderboard DB failed: ${err.message}`);
         }
@@ -379,15 +370,7 @@ async function getLeaderboard(guildId, limit = 10, skip = 0) {
     const list = [];
     for (const [key, val] of memoryStats.entries()) {
         if (key.startsWith(`${guildId}:`)) {
-            const userId = key.split(':')[1];
-            list.push({
-                userId,
-                regular: val.regular || 0,
-                left: val.left || 0,
-                fake: val.fake || 0,
-                bonus: val.bonus || 0,
-                total: computeTotal(val)
-            });
+            list.push(mapRow({ userId: key.split(':')[1], ...val }));
         }
     }
 

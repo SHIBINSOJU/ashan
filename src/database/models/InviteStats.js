@@ -5,8 +5,10 @@ const inviteStatsSchema = new mongoose.Schema({
     userId: { type: String, required: true, index: true },
     regular: { type: Number, default: 0 },
     left: { type: Number, default: 0 },
-    fake: { type: Number, default: 0 },
-    bonus: { type: Number, default: 0 }
+    fake: { type: Number, default: 0 },      // flagged alt/fake accounts
+    bonus: { type: Number, default: 0 },
+    rejoins: { type: Number, default: 0 },   // members who returned after leaving
+    joins: { type: Number, default: 0 }      // every recorded join (regular + alt + rejoin)
 }, { timestamps: true });
 
 inviteStatsSchema.index({ guildId: 1, userId: 1 }, { unique: true });

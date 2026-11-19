@@ -2,6 +2,7 @@ const {
     SlashCommandBuilder,
     PermissionFlagsBits,
     MessageFlags,
+    ChannelType,
     ContainerBuilder,
     TextDisplayBuilder,
     SeparatorBuilder,
@@ -10,12 +11,14 @@ const {
     ThumbnailBuilder
 } = require('discord.js');
 const inviteRepository = require('../../../database/repositories/inviteRepository');
+const guildSettingsRepository = require('../../../database/repositories/guildSettingsRepository');
 const { cacheGuildInvites } = require('../services/inviteCache');
+const { resolveInviteConfig } = require('../services/inviteService');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('invites')
-        .setDescription('View and manage invite statistics.')
+        .setDescription('View, manage and announce invite statistics.')
         .addSubcommand(sub =>
             sub.setName('user')
                 .setDescription('View your invite stats or those of another member.')
@@ -36,8 +39,23 @@ module.exports = {
                 )
         )
         .addSubcommand(sub =>
+            sub.setName('give')
+                .setDescription('Give bonus invites to a member (Admin/Manage Server only).')
+                .addUserOption(opt =>
+                    opt.setName('target')
+                        .setDescription('The member to give bonus invites to')
+                        .setRequired(true)
+                )
+                .addIntegerOption(opt =>
+                    opt.setName('amount')
+                        .setDescription('Amount of bonus invites to give')
+                        .setMinValue(1)
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(sub =>
             sub.setName('add')
-                .setDescription('Add bonus invites to a member (Admin/Manage Server only).')
+                .setDescription('Alias of /invites give — add bonus invites (Admin/Manage Server only).')
                 .addUserOption(opt =>
                     opt.setName('target')
                         .setDescription('The member to give bonus invites to')
@@ -77,6 +95,16 @@ module.exports = {
         .addSubcommand(sub =>
             sub.setName('sync')
                 .setDescription('Re-synchronize the server invite cache with Discord.')
+        )
+        .addSubcommand(sub =>
+            sub.setName('channel')
+                .setDescription('Set or view the channel for join/leave/rejoin/alt invite messages.')
+                .addChannelOption(opt =>
+                    opt.setName('channel')
+                        .setDescription('Target channel (omit to view the current setting)')
+                        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+                        .setRequired(false)
+                )
         ),
 
     async execute(interaction) {
@@ -93,17 +121,26 @@ module.exports = {
             await handleUserStats(interaction);
         } else if (subcommand === 'leaderboard') {
             await handleLeaderboard(interaction);
-        } else if (subcommand === 'add') {
-            await handleAddBonus(interaction);
+        } else if (subcommand === 'give' || subcommand === 'add') {
+            await handleGiveBonus(interaction);
         } else if (subcommand === 'remove') {
             await handleRemoveBonus(interaction);
         } else if (subcommand === 'reset') {
             await handleReset(interaction);
         } else if (subcommand === 'sync') {
             await handleSync(interaction);
+        } else if (subcommand === 'channel') {
+            await handleChannel(interaction);
         }
     }
 };
+
+function hasStaffPermission(interaction) {
+    return Boolean(
+        interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ||
+        interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    );
+}
 
 async function handleUserStats(interaction) {
     await interaction.deferReply();
@@ -130,10 +167,12 @@ async function handleUserStats(interaction) {
     const lines = [
         `### Total Invites: **${stats.total}**`,
         '',
-        `> 🟢 **Regular:** \`${stats.regular}\` *(Active joined members)*`,
-        `> 🔴 **Left:** \`${stats.left}\` *(Members who left)*`,
-        `> 🎁 **Bonus:** \`${stats.bonus}\` *(Added by staff)*`,
-        `> ⚠️ **Fake:** \`${stats.fake}\` *(Accounts younger than 3 days)*`
+        `> 📥 **Joins:** \`${stats.joins}\` *(all recorded joins)*`,
+        `> 🟢 **Regular:** \`${stats.regular}\` *(joined, not counted as alt)*`,
+        `> 🔁 **Rejoins:** \`${stats.rejoins}\` *(left and came back)*`,
+        `> 🔴 **Left:** \`${stats.left}\` *(members who left)*`,
+        `> ⚠️ **Alts / Fake:** \`${stats.fake}\` *(young accounts or avatar clones)*`,
+        `> 🎁 **Bonus:** \`${stats.bonus}\` *(given by staff)*`
     ];
 
     container.addTextDisplayComponents(
@@ -182,7 +221,8 @@ async function handleLeaderboard(interaction) {
         const rows = top.map((entry, index) => {
             const rankNum = skip + index + 1;
             const rankLabel = medals[skip + index] || `**#${rankNum}**`;
-            return `${rankLabel} <@${entry.userId}> — **${entry.total}** invites \`(${entry.regular} regular, ${entry.left} left, ${entry.bonus} bonus)\``;
+            return `${rankLabel} <@${entry.userId}> — **${entry.total}** invites ` +
+                `\`(${entry.regular} regular, ${entry.rejoins} rejoins, ${entry.left} left, ${entry.bonus} bonus)\``;
         });
 
         container.addTextDisplayComponents(
@@ -203,11 +243,10 @@ async function handleLeaderboard(interaction) {
     });
 }
 
-async function handleAddBonus(interaction) {
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+async function handleGiveBonus(interaction) {
+    if (!hasStaffPermission(interaction)) {
         return interaction.reply({
-            content: '❌ You need the **Manage Server** permission to add bonus invites.',
+            content: '❌ You need the **Manage Server** permission to give bonus invites.',
             flags: MessageFlags.Ephemeral
         });
     }
@@ -218,14 +257,13 @@ async function handleAddBonus(interaction) {
     const stats = await inviteRepository.addBonus(interaction.guild.id, target.id, amount);
 
     return interaction.reply({
-        content: `✅ Successfully added **+${amount}** bonus invites to ${target}! They now have **${stats.total}** total invites.`,
+        content: `✅ Successfully gave **+${amount}** bonus invites to ${target}! They now have **${stats.total}** total invites.`,
         flags: MessageFlags.Ephemeral
     });
 }
 
 async function handleRemoveBonus(interaction) {
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
-        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    if (!hasStaffPermission(interaction)) {
         return interaction.reply({
             content: '❌ You need the **Manage Server** permission to remove bonus invites.',
             flags: MessageFlags.Ephemeral
@@ -261,8 +299,7 @@ async function handleReset(interaction) {
 }
 
 async function handleSync(interaction) {
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) &&
-        !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+    if (!hasStaffPermission(interaction)) {
         return interaction.reply({
             content: '❌ You need **Manage Server** permission to re-synchronize invites.',
             flags: MessageFlags.Ephemeral
@@ -274,5 +311,36 @@ async function handleSync(interaction) {
 
     return interaction.editReply({
         content: `✅ Successfully re-synchronized invite cache for **${interaction.guild.name}**!`
+    });
+}
+
+async function handleChannel(interaction) {
+    if (!hasStaffPermission(interaction)) {
+        return interaction.reply({
+            content: '❌ You need the **Manage Server** permission to set the invite announcement channel.',
+            flags: MessageFlags.Ephemeral
+        });
+    }
+
+    const channel = interaction.options.getChannel('channel');
+    const cfg = await resolveInviteConfig(interaction.guild);
+
+    if (!channel) {
+        const current = cfg.logChannelId ? `<#${cfg.logChannelId}>` : '*not set*';
+        return interaction.reply({
+            content: `📨 Invite announcements are currently sent to: ${current}\n` +
+                'Use `/invites channel channel:#channel` to change it.',
+            flags: MessageFlags.Ephemeral
+        });
+    }
+
+    await guildSettingsRepository.updateGuildSettings(interaction.guild.id, {
+        $set: { 'invites.channelId': channel.id }
+    });
+
+    return interaction.reply({
+        content: `✅ Invite join/leave/rejoin/alt announcements will now be sent to ${channel}.\n` +
+            '-# Make sure the bot can View Channel and Send Messages there.',
+        flags: MessageFlags.Ephemeral
     });
 }

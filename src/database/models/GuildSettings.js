@@ -98,6 +98,13 @@ const guildSettingsSchema = new mongoose.Schema({
         bots: { type: Boolean, default: null },
         delay: { type: Number, default: null }
     },
+    // Per-guild invite tracking overrides (`null` = inherit config.yml).
+    // channelId = where plain-text join/leave/rejoin/alt announcements go
+    // (set with /invites channel).
+    invites: {
+        enabled: { type: Boolean, default: null },
+        channelId: { type: String, default: null }
+    },
     management: {
         allowedRoleIds: { type: [String], default: [] }
     },

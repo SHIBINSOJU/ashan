@@ -326,13 +326,28 @@ youtube_promotion:
 
 invites:
   enabled: true             # Master switch for invite tracking system
-  logChannelId: ""          # Dedicated channel for invite join/leave notifications ("" = use logs.invite channel or member channel)
-  minAccountAgeDays: 3      # Accounts younger than this are flagged as fake invites (0 = disable)
-  trackLeaves: true         # Whether to count leaves against the inviter
+  logChannelId: "1572611294287364246"   # Channel for plain-text join/leave/rejoin/alt messages ("" = disabled).
+                            # Set per server with /invites channel — that value wins over this one.
+  minAccountAgeDays: 3      # Legacy base threshold; used when altDetection.minAccountAgeDays is unset
+  trackLeaves: true         # Whether to count leaves against the inviter (a rejoin gives the point back)
   joinMessage: "📥 **{member}** joined using invite code `{code}` from **{inviter}** (now has **{inviterTotal}** invites)!"
+  rejoinMessage: "🔁 **{member}** rejoined the hive — originally invited by **{inviter}** (now has **{inviterTotal}** invites)."
+  altJoinMessage: "⚠️ **{member}** joined, but was flagged as a possible alt ({altReason}). Invited by **{inviter}**."
   leaveMessage: "📤 **{member}** left. They were invited by **{inviter}** (now has **{inviterTotal}** invites)."
-  vanityJoinMessage: "📥 **{member}** joined using the server vanity URL!"
+  vanityJoinMessage: "🔗 **{member}** joined using the server vanity URL!"
   unknownJoinMessage: "📥 **{member}** joined (invite could not be determined)."
+
+  # Alt-account heuristics. Flagged joins are counted in a separate bucket and
+  # never inflate the inviter's regular count.
+  altDetection:
+    enabled: true
+    minAccountAgeDays: 7    # accounts younger than this are flagged as possible alts
+    avatarCloneCheck: true  # same custom avatar as an existing human member
+
+  # Message placeholders: {member} {mention} {username} {tag} {userid} {server}
+  #   {code} {inviter} {inviterName} {inviterTotal} {total} {regular} {rejoins}
+  #   {joins} {left} {bonus} {alts} {altReason}
+
 
 music:
   enabled: true             # Master switch for Lavalink music system

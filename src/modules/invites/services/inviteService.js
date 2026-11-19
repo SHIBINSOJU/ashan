@@ -1,58 +1,115 @@
 const logger = require('../../../core/logger');
 const configService = require('../../../core/configService');
+const guildSettingsRepository = require('../../../database/repositories/guildSettingsRepository');
 const inviteRepository = require('../../../database/repositories/inviteRepository');
 const { findUsedInvite } = require('./inviteCache');
+const { detectAlt } = require('./altDetection');
 const { sendLog } = require('../../logs/services/logDispatcher');
 const { avatarUrlOf, fmtTimestamp, userLine } = require('../../logs/services/logBuilders');
+const { withRetry } = require('../../../utils/retry');
 
-function getInviteConfig() {
-    return configService.get('invites', {
+// File-level defaults. Every string below can be overridden in config.yml and,
+// for the channel, per server through /invites channel (GuildSettings.invites).
+const DEFAULTS = {
+    enabled: true,
+    logChannelId: '',
+    minAccountAgeDays: 3,
+    trackLeaves: true,
+    altDetection: {
         enabled: true,
-        logChannelId: '',
-        minAccountAgeDays: 3,
-        trackLeaves: true,
-        joinMessage: '📥 **{member}** joined using invite code `{code}` from **{inviter}** (now has **{inviterTotal}** invites)!',
-        leaveMessage: '📤 **{member}** left. They were invited by **{inviter}** (now has **{inviterTotal}** invites).'
-    });
+        minAccountAgeDays: 7,
+        avatarCloneCheck: true
+    },
+    joinMessage: '📥 **{member}** joined using invite code `{code}` from **{inviter}** (now has **{inviterTotal}** invites)!',
+    rejoinMessage: '🔁 **{member}** rejoined the hive — originally invited by **{inviter}** (now has **{inviterTotal}** invites).',
+    altJoinMessage: '⚠️ **{member}** joined, but was flagged as a possible alt ({altReason}). Invited by **{inviter}**.',
+    leaveMessage: '📤 **{member}** left. They were invited by **{inviter}** (now has **{inviterTotal}** invites).',
+    vanityJoinMessage: '🔗 **{member}** joined using the server vanity URL!',
+    unknownJoinMessage: '📥 **{member}** joined (invite could not be determined).'
+};
+
+/** File-level invite configuration (used when no guild is available). */
+function getInviteConfig() {
+    const base = configService.get('invites', {}) || {};
+    return {
+        ...DEFAULTS,
+        ...base,
+        altDetection: { ...DEFAULTS.altDetection, ...(base.altDetection || {}) }
+    };
+}
+
+/**
+ * Effective config for one guild:
+ *   config.yml invites  ->  GuildSettings.invites { enabled, channelId }
+ * Only the channel (and the on/off switch) is stored per server; message
+ * templates stay file-level so one deployment renders consistently.
+ */
+async function resolveInviteConfig(guild) {
+    const cfg = getInviteConfig();
+    if (!guild?.id) return cfg;
+
+    let stored = null;
+    try {
+        const settings = await guildSettingsRepository.getGuildSettings(guild.id);
+        stored = settings?.invites || null;
+    } catch {
+        stored = null;
+    }
+
+    return {
+        ...cfg,
+        enabled: stored?.enabled ?? cfg.enabled,
+        logChannelId: stored?.channelId || cfg.logChannelId || ''
+    };
 }
 
 async function handleMemberJoin(member) {
-    const cfg = getInviteConfig();
+    const cfg = await resolveInviteConfig(member.guild);
     if (!cfg.enabled) return null;
 
     try {
         const inviteResult = await findUsedInvite(member.guild);
         const user = member.user;
-
-        // Check account age (fake protection)
-        const accountAgeDays = user.createdTimestamp ? (Date.now() - user.createdTimestamp) / (1000 * 60 * 60 * 24) : 999;
-        const minAge = typeof cfg.minAccountAgeDays === 'number' ? cfg.minAccountAgeDays : 3;
-        const isFake = minAge > 0 && accountAgeDays < minAge;
+        const alt = detectAlt(member, cfg);
 
         let inviterUser = null;
-        let stats = null;
+        let record = null;
 
         if (inviteResult.type === 'invite' && inviteResult.inviterId) {
             try {
                 inviterUser = await member.client.users.fetch(inviteResult.inviterId).catch(() => null);
             } catch {}
-            stats = await inviteRepository.recordJoin(
+            record = await inviteRepository.recordJoin(
                 member.guild.id,
                 member.id,
                 inviteResult.inviterId,
                 inviteResult.code,
-                isFake
+                alt.isAlt
             );
         } else if (inviteResult.type === 'vanity') {
-            await inviteRepository.recordJoin(member.guild.id, member.id, null, 'VANITY', false);
+            record = await inviteRepository.recordJoin(member.guild.id, member.id, null, 'VANITY', alt.isAlt);
         } else {
-            await inviteRepository.recordJoin(member.guild.id, member.id, null, 'UNKNOWN', false);
+            record = await inviteRepository.recordJoin(
+                member.guild.id,
+                member.id,
+                null,
+                inviteResult.code || 'UNKNOWN',
+                alt.isAlt
+            );
         }
 
-        // Send log entry
-        await dispatchInviteJoinLog(member, inviteResult, inviterUser, stats, isFake);
+        const stats = record?.stats || null;
+        const isRejoin = Boolean(record?.isRejoin);
 
-        return { inviteResult, inviterUser, stats, isFake };
+        // Credit resolution: a rejoin through an unknown link keeps the old inviter.
+        if (!inviterUser && record?.inviterId) {
+            inviterUser = await member.client.users.fetch(record.inviterId).catch(() => null);
+        }
+
+        await dispatchInviteJoinLog(member, inviteResult, inviterUser, stats, alt, isRejoin);
+        await announceJoin(member, cfg, inviteResult, inviterUser, stats, alt, isRejoin);
+
+        return { inviteResult, inviterUser, stats, isFake: alt.isAlt, alt, isRejoin };
     } catch (err) {
         logger.error(`InviteTracker: handleMemberJoin error for ${member.id}: ${err.message}`);
         return null;
@@ -60,58 +117,170 @@ async function handleMemberJoin(member) {
 }
 
 async function handleMemberLeave(member) {
-    const cfg = getInviteConfig();
+    const cfg = await resolveInviteConfig(member.guild);
     if (!cfg.enabled || !cfg.trackLeaves) return;
 
     try {
-        const { inviterId, stats } = await inviteRepository.recordLeave(member.guild.id, member.id);
-        if (!inviterId) return;
+        const result = await inviteRepository.recordLeave(member.guild.id, member.id);
+        if (!result.inviterId) return;
 
         let inviterUser = null;
         try {
-            inviterUser = await member.client.users.fetch(inviterId).catch(() => null);
+            inviterUser = await member.client.users.fetch(result.inviterId).catch(() => null);
         } catch {}
 
-        await dispatchInviteLeaveLog(member, inviterUser, stats);
+        if (!result.alreadyCounted) {
+            await dispatchInviteLeaveLog(member, inviterUser, result.stats, result.isFake);
+            await announceLeave(member, cfg, inviterUser, result.stats);
+        }
     } catch (err) {
         logger.error(`InviteTracker: handleMemberLeave error for ${member.id}: ${err.message}`);
     }
 }
 
-async function dispatchInviteJoinLog(member, inviteResult, inviterUser, stats, isFake) {
+// ── Plain-text announcements ────────────────────────────────────────────────
+// These are the "welcome-like" messages in the channel set by
+// `/invites channel` (or `invites.logChannelId`). The Components V2 entry in
+// the server-logs system stays separate and unchanged.
+
+function fillTemplate(template, data) {
+    if (typeof template !== 'string' || !template.trim()) return '';
+    return template.replace(/\{([a-z0-9_]+)\}/gi, (match, key) => {
+        const value = data[key.toLowerCase()];
+        return value === undefined || value === null ? match : String(value);
+    });
+}
+
+function buildTemplateData(member, inviteResult, inviterUser, stats, alt) {
+    const user = member.user || member;
+    return {
+        member: `<@${member.id}>`,
+        mention: `<@${member.id}>`,
+        username: user.username || 'unknown',
+        tag: user.tag || user.username || 'unknown',
+        userid: user.id || member.id,
+        server: member.guild?.name || 'this server',
+        code: inviteResult?.code || 'unknown',
+        inviter: inviterUser ? `<@${inviterUser.id}>` : 'someone',
+        inviterName: inviterUser?.username || 'someone',
+        inviterTotal: stats?.total ?? 0,
+        total: stats?.total ?? 0,
+        regular: stats?.regular ?? 0,
+        left: stats?.left ?? 0,
+        rejoins: stats?.rejoins ?? 0,
+        joins: stats?.joins ?? 0,
+        bonus: stats?.bonus ?? 0,
+        alts: stats?.fake ?? 0,
+        altReason: alt?.reasons?.length ? alt.reasons.join('; ') : 'possible alt account'
+    };
+}
+
+function pickJoinTemplate(cfg, inviteResult, alt, isRejoin) {
+    if (alt?.isAlt && cfg.altJoinMessage) return cfg.altJoinMessage;
+    if (isRejoin && cfg.rejoinMessage) return cfg.rejoinMessage;
+    if (inviteResult?.type === 'invite') return cfg.joinMessage;
+    if (inviteResult?.type === 'vanity') return cfg.vanityJoinMessage;
+    return cfg.unknownJoinMessage;
+}
+
+async function resolveAnnouncementChannel(guild, cfg) {
+    const channelId = cfg.logChannelId || '';
+    if (!channelId) return null;
+
+    const channel = await withRetry(
+        () => guild.channels.fetch(String(channelId)),
+        { attempts: 2 }
+    ).catch(() => null);
+
+    if (!channel || !channel.isTextBased?.() || !channel.viewable) return null;
+    return channel;
+}
+
+async function sendAnnouncement(guild, cfg, text) {
+    if (!text) return false;
+    const channel = await resolveAnnouncementChannel(guild, cfg);
+    if (!channel) return false;
+
+    try {
+        await withRetry(() => channel.send({
+            content: text,
+            allowedMentions: { parse: ['users'] }
+        }), { attempts: 2 });
+        return true;
+    } catch (err) {
+        logger.error(`InviteTracker: announcement failed in ${guild.id}: ${err.message}`);
+        return false;
+    }
+}
+
+async function announceJoin(member, cfg, inviteResult, inviterUser, stats, alt, isRejoin) {
+    const template = pickJoinTemplate(cfg, inviteResult, alt, isRejoin);
+    if (!template) return;
+    const text = fillTemplate(template, buildTemplateData(member, inviteResult, inviterUser, stats, alt));
+    await sendAnnouncement(member.guild, cfg, text);
+}
+
+async function announceLeave(member, cfg, inviterUser, stats) {
+    const template = cfg.leaveMessage;
+    if (!template) return;
+    const text = fillTemplate(
+        template,
+        buildTemplateData(member, { code: null }, inviterUser, stats, null)
+    );
+    await sendAnnouncement(member.guild, cfg, text);
+}
+
+// ── Server-log entries (Components V2, unchanged channel plumbing) ──────────
+
+async function dispatchInviteJoinLog(member, inviteResult, inviterUser, stats, alt, isRejoin) {
     const guild = member.guild;
     const user = member.user;
+    const isAlt = Boolean(alt?.isAlt);
 
-    let title = 'Member Joined via Invite';
-    let emoji = '📨';
-    let accent = 0x57F287; // green
+    let title = isRejoin ? 'Member Rejoined via Invite' : 'Member Joined via Invite';
+    let emoji = isRejoin ? '🔁' : '📨';
+    let accent = isRejoin ? 0xFEE75C : 0x57F287; // yellow / green
 
     const fields = [
         { label: 'Member', value: userLine(user, member) }
     ];
 
-    if (inviteResult.type === 'invite') {
-        const inviterLine = inviterUser ? `<@${inviterUser.id}> (\`${inviterUser.tag}\`)` : `\`${inviteResult.inviterId || 'unknown'}\``;
-        fields.push({ label: 'Invited by', value: inviterLine });
-        fields.push({ label: 'Invite code', value: `\`${inviteResult.code}\` (Uses: ${inviteResult.uses || 1})` });
+    if (inviteResult.type === 'invite' || (isRejoin && inviterUser)) {
+        const inviterLine = inviterUser
+            ? `<@${inviterUser.id}> (\`${inviterUser.tag}\`)`
+            : `\`${inviteResult.inviterId || 'unknown'}\``;
+        fields.push({ label: isRejoin ? 'Originally invited by' : 'Invited by', value: inviterLine });
+        fields.push({ label: 'Invite code', value: `\`${inviteResult.code || 'unknown'}\`${inviteResult.uses ? ` (Uses: ${inviteResult.uses})` : ''}` });
 
         if (stats) {
-            const fakeNote = isFake ? ' ⚠️ *(Account < 3 days old)*' : '';
             fields.push({
                 label: 'Inviter stats',
-                value: `**${stats.total}** total (${stats.regular} regular, ${stats.left} left, ${stats.bonus} bonus)${fakeNote}`
+                value: `**${stats.total}** total (${stats.regular} regular, ${stats.rejoins} rejoins, ${stats.left} left, ${stats.bonus} bonus)`
             });
         }
     } else if (inviteResult.type === 'vanity') {
-        title = 'Member Joined via Vanity URL';
+        title = isRejoin ? 'Member Rejoined via Vanity URL' : 'Member Joined via Vanity URL';
         emoji = '🔗';
         accent = 0x00AFF4;
         fields.push({ label: 'Vanity code', value: `discord.gg/${inviteResult.code || 'vanity'}` });
+        if (stats) {
+            fields.push({
+                label: 'Inviter stats',
+                value: `**${stats.total}** total (${stats.regular} regular, ${stats.rejoins} rejoins, ${stats.left} left, ${stats.bonus} bonus)`
+            });
+        }
     } else {
-        title = 'Member Joined (Unknown Invite)';
+        title = isRejoin ? 'Member Rejoined (Unknown Invite)' : 'Member Joined (Unknown Invite)';
         emoji = '❓';
         accent = 0x95A5A6;
         fields.push({ label: 'Invite source', value: 'OAuth, Discord discovery, or vanity URL' });
+    }
+
+    if (isAlt) {
+        fields.push({
+            label: '⚠️ Alt / fake check',
+            value: alt.reasons?.length ? alt.reasons.join('; ') : 'flagged as a possible alt account'
+        });
     }
 
     fields.push({ label: 'Account created', value: fmtTimestamp(user.createdTimestamp, 'R') });
@@ -126,7 +295,7 @@ async function dispatchInviteJoinLog(member, inviteResult, inviterUser, stats, i
     });
 }
 
-async function dispatchInviteLeaveLog(member, inviterUser, stats) {
+async function dispatchInviteLeaveLog(member, inviterUser, stats, isFake) {
     const guild = member.guild;
     const user = member.user || member;
 
@@ -141,8 +310,12 @@ async function dispatchInviteLeaveLog(member, inviterUser, stats) {
     if (stats) {
         fields.push({
             label: 'Inviter updated stats',
-            value: `**${stats.total}** total (${stats.regular} regular, ${stats.left} left, ${stats.bonus} bonus)`
+            value: `**${stats.total}** total (${stats.regular} regular, ${stats.rejoins} rejoins, ${stats.left} left, ${stats.bonus} bonus)`
         });
+    }
+
+    if (isFake) {
+        fields.push({ label: '⚠️ Alt / fake', value: 'This member was originally flagged as a possible alt.' });
     }
 
     await sendLog(guild, 'invite', {
@@ -157,6 +330,7 @@ async function dispatchInviteLeaveLog(member, inviterUser, stats) {
 
 module.exports = {
     getInviteConfig,
+    resolveInviteConfig,
     handleMemberJoin,
     handleMemberLeave
 };
