@@ -71,7 +71,7 @@ tickets:
   enabled: true
   panel:
     channelId: "YOUR_SUPPORT_CHANNEL_ID"      # Channel where /ticket panel is posted
-    title: "🎫 Ashan Gaming Official Support Center"
+    title: "🎫 ASHAN GAMING Support Centre"
     description: "Need help? Select a category below.\nOur support team will assist you shortly."
   logs:
     enabled: true

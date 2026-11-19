@@ -77,7 +77,7 @@ async function resolveTicketsConfig(guild) {
         enabled: base.enabled ?? true,
         panel: {
             channelId: db?.tickets?.panelChannelId ?? panel.channelId ?? '',
-            title: panel.title || '🎫 Support Center',
+            title: panel.title || '🎫 ASHAN GAMING Support Centre',
             description: panel.description || 'Need help? Select a category below.\nOur staff will assist you shortly.'
         },
         logs: {

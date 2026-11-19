@@ -227,13 +227,13 @@ tickets:
   enabled: true             # Master switch for the ticket system
 
   panel:
-    channelId: "1570473665638961342"           # Default channel for /ticket panel ("" = current channel)
-    title: "🎫 Ashan Gaming Official Support Center"
+    channelId: "1486341055585456228"           # Default channel for /ticket panel ("" = current channel)
+    title: "🎫 ASHAN GAMING Support Centre"
     description: "Need help? Select a category below.\nOur support team will assist you shortly."
 
   logs:
     enabled: true
-    channelId: "1478779792072376511"   # Ticket log channel ("" = logging disabled)
+    channelId: "1506266229701349487"   # Ticket log channel ("" = logging disabled)
 
   maxOpenTicketsPerUser: 1  # Duplicate-ticket protection (0 = unlimited)
   allowReclaim: false       # Allow a different staff member to take an already-claimed ticket
